@@ -1,0 +1,661 @@
+<title>Nelder–Mead krok za krokom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Manrope:wght@400;600;800&display=swap">
+<style>
+/* Layout: plot + step notes on the left, inputs + history on the right; one column under 900px */
+:root{
+  --bg:#f2f6f5; --surface:#ffffff; --fg:#14272b; --muted:#4f6569; --line:#cfdad8;
+  --accent:#0b6b7a; --accent-fg:#ffffff;
+  --best:#1b8a4b; --good:#a8680c; --worst:#c0392b;
+  --lo:#7db6c3; --hi:#f0f4f2; --iso:#5d909b;
+  --ui:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1618; --surface:#142124; --fg:#e3eded; --muted:#9bb0b2; --line:#27393c;
+    --accent:#52c3d4; --accent-fg:#052228;
+    --best:#52d28a; --good:#e6b04a; --worst:#f08272;
+    --lo:#2e8497; --hi:#0e1b1f; --iso:#478694;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1618; --surface:#142124; --fg:#e3eded; --muted:#9bb0b2; --line:#27393c;
+  --accent:#52c3d4; --accent-fg:#052228;
+  --best:#52d28a; --good:#e6b04a; --worst:#f08272;
+  --lo:#2e8497; --hi:#0e1b1f; --iso:#478694;
+  color-scheme:dark;
+}
+body{background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:14px;line-height:1.5;padding-inline:16px}
+*{box-sizing:border-box}
+.wrap{max-width:1180px;margin:0 auto;padding-block:22px 44px}
+h1{font-size:1.65rem;line-height:1.15;font-weight:800;letter-spacing:-0.015em;margin:0 0 6px;text-wrap:balance}
+h2{font-size:.78rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.sub{color:var(--muted);max-width:68ch;margin:0 0 18px}
+.grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px;align-items:start}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+.plot{order:1}.log{order:2}.ctrl{order:1}.hist{order:2}
+@media (max-width:900px){
+  .grid{grid-template-columns:minmax(0,1fr)}
+  .col{display:contents}
+  .plot{order:1}.log{order:2}.hist{order:3}.ctrl{order:4}
+}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.toolbar .sp{flex:1}
+.btn{font:inherit;font-weight:600;padding:7px 12px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;min-height:34px}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.sm{padding:4px 9px;min-height:28px;font-size:.85rem}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.plotbox{border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+canvas{display:block;width:100%;aspect-ratio:4/3;touch-action:pan-y pinch-zoom;cursor:grab;background:var(--hi)}
+.status{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-family:var(--mono);font-size:.82rem;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:.82rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.legend i.dia{border-radius:2px;transform:rotate(45deg) scale(.9)}
+.result{margin-top:10px;padding:10px 12px;border-radius:6px;border:1px solid var(--best);background:var(--bg);font-weight:600}
+.calc{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+.calc li{display:grid;grid-template-columns:7.5rem minmax(0,1fr);gap:4px 10px}
+.calc .lab{font-weight:800;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding-top:2px}
+.calc .m{font-family:var(--mono);font-size:.84rem;overflow-wrap:anywhere}
+.calc .ok{color:var(--best);font-weight:600}.calc .no{color:var(--worst);font-weight:600}
+.calc .act{font-weight:800}
+@media (max-width:520px){.calc li{grid-template-columns:minmax(0,1fr)}}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:.78rem;font-weight:600;color:var(--muted);min-width:0}
+input,select{font:inherit;font-family:var(--mono);font-size:.88rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0;min-height:34px}
+select{font-family:var(--ui)}
+.fields{display:flex;flex-direction:column;gap:12px}
+.vgrid{display:grid;grid-template-columns:2.2rem minmax(0,1fr) minmax(0,1fr);gap:6px 8px;align-items:center}
+.vgrid .vl{font-weight:800;color:var(--muted)}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px}
+.hint{font-size:.78rem;color:var(--muted);margin:4px 0 0}
+.err{color:var(--worst);font-weight:600;min-height:1.2em;margin:0}
+.chk{display:flex;gap:8px;align-items:center;font-size:.85rem;color:var(--muted)}
+.chk input{width:auto;min-height:0}
+.tbl{overflow:auto;max-height:340px;border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:.78rem;font-variant-numeric:tabular-nums}
+th,td{padding:5px 8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{position:sticky;top:0;background:var(--surface);color:var(--muted);font-family:var(--ui);font-weight:800;font-size:.72rem;letter-spacing:.04em}
+th:first-child,td:first-child{text-align:left}
+tr.cur td{background:var(--bg);font-weight:600}
+.rowbtn{font:inherit;background:none;border:0;color:var(--accent);cursor:pointer;padding:0;text-decoration:underline}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Nelder–Mead krok za krokom</h1>
+    <p class="sub">Zadaj funkciu f(x, y) a tri vrcholy trojuholníka. Stránka robí rovnaké kroky ako na prednáške: ťažisko, reflexia, expanzia, kontrakcia a zmrštenie. Pri každej iterácii vidíš aj výpočet.</p>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card plot" aria-label="Graf">
+        <div class="toolbar">
+          <button class="btn" id="bBack" type="button">Späť</button>
+          <button class="btn primary" id="bStep" type="button">Krok</button>
+          <button class="btn" id="bRun" type="button">Spustiť</button>
+          <button class="btn" id="bReset" type="button">Od začiatku</button>
+          <span class="sp"></span>
+          <button class="btn sm" id="zIn" type="button" aria-label="Priblížiť">+</button>
+          <button class="btn sm" id="zOut" type="button" aria-label="Oddialiť">−</button>
+          <button class="btn sm" id="zFit" type="button">Na simplex</button>
+          <button class="btn sm" id="zHome" type="button">Celý pohľad</button>
+        </div>
+        <div class="plotbox"><canvas id="cv" aria-label="Vrstevnice funkcie a trojuholník Nelder–Mead"></canvas></div>
+        <div class="legend">
+          <span><i style="background:var(--best)"></i>A najlepší</span>
+          <span><i style="background:var(--good)"></i>B dobrý</span>
+          <span><i style="background:var(--worst)"></i>C najhorší</span>
+          <span><i class="dia" style="background:var(--accent)"></i>M ťažisko, R reflexia, E expanzia, K kontrakcia</span>
+        </div>
+        <div class="status" id="status" aria-live="polite"></div>
+        <div id="result"></div>
+      </section>
+
+      <section class="card log" aria-label="Výpočet iterácie">
+        <h2 id="logTitle">Výpočet</h2>
+        <ol class="calc" id="calc"></ol>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="card ctrl" aria-label="Zadanie">
+        <h2>Zadanie</h2>
+        <div class="fields">
+          <label class="f" for="preset">Príklad
+            <select id="preset"></select>
+          </label>
+          <label class="f" for="fn">Funkcia f(x, y)
+            <input id="fn" type="text" spellcheck="false" autocomplete="off">
+          </label>
+          <p class="hint" style="margin-top:-6px">Premenné x a y. Môžeš písať 3(y-1)^2, 4x, x*y, sin(x), exp(y), sqrt(x).</p>
+          <div>
+            <div class="vgrid">
+              <span></span><span class="hint" style="margin:0">x</span><span class="hint" style="margin:0">y</span>
+              <span class="vl">V₁</span><input id="v0x" type="number" step="any" aria-label="V1 x"><input id="v0y" type="number" step="any" aria-label="V1 y">
+              <span class="vl">V₂</span><input id="v1x" type="number" step="any" aria-label="V2 x"><input id="v1y" type="number" step="any" aria-label="V2 y">
+              <span class="vl">V₃</span><input id="v2x" type="number" step="any" aria-label="V3 x"><input id="v2y" type="number" step="any" aria-label="V3 y">
+            </div>
+            <p class="hint">Počiatočné vrcholy. Poradie nehrá rolu, stránka ich zoradí podľa f.</p>
+          </div>
+          <div class="pgrid">
+            <label class="f" for="pal">α reflexia<input id="pal" type="number" step="any" value="1"></label>
+            <label class="f" for="pga">γ expanzia<input id="pga" type="number" step="any" value="2"></label>
+            <label class="f" for="prho">ρ kontrakcia<input id="prho" type="number" step="any" value="0.5"></label>
+            <label class="f" for="psig">σ zmrštenie<input id="psig" type="number" step="any" value="0.5"></label>
+            <label class="f" for="peps">ε presnosť<input id="peps" type="number" step="any" value="0.001"></label>
+          </div>
+          <label class="chk" for="auto"><input id="auto" type="checkbox" checked>Pohľad sa sám rozšíri, keď simplex vyjde mimo</label>
+          <p class="err" id="err" role="alert"></p>
+          <div><button class="btn primary" id="bApply" type="button">Použiť zadanie</button></div>
+        </div>
+      </section>
+
+      <section class="card hist" aria-label="História iterácií">
+        <h2>História</h2>
+        <div class="tbl"><table>
+          <thead><tr><th>k</th><th>A</th><th>f(A)</th><th>B</th><th>C</th><th>d</th><th>akcia</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <p class="hint">d je najväčšia vzdialenosť vrcholov od najlepšieho bodu A. Keď d &lt; ε, výpočet končí.</p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+var $ = function(id){ return document.getElementById(id); };
+
+/* ---------- výraz -> funkcia (bez eval) ---------- */
+var FN = {sin:Math.sin,cos:Math.cos,tan:Math.tan,exp:Math.exp,ln:Math.log,log:Math.log,sqrt:Math.sqrt,abs:Math.abs};
+function compile(src){
+  var s = src.replace(/[−–]/g,'-').replace(/[·×]/g,'*').replace(/²/g,'^2').replace(/³/g,'^3').replace(/⁴/g,'^4')
+             .replace(/(\d),(\d)/g,'$1.$2').replace(/\*\*/g,'^');
+  var toks = [], i = 0, m;
+  while(i < s.length){
+    var c = s[i];
+    if(/\s/.test(c)){ i++; continue; }
+    if(/[0-9.]/.test(c)){
+      m = /^(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?/.exec(s.slice(i));
+      if(!m) throw new Error('Zlé číslo pri „'+s.slice(i,i+4)+'“');
+      toks.push({t:'num',v:parseFloat(m[0])}); i += m[0].length; continue;
+    }
+    if(/[a-zA-Z]/.test(c)){
+      var j = i; while(j < s.length && /[a-zA-Z]/.test(s[j])) j++;
+      var w = s.slice(i,j).toLowerCase();
+      if(FN[w]) toks.push({t:'fn',v:w});
+      else if(w==='pi') toks.push({t:'num',v:Math.PI});
+      else if(w==='e') toks.push({t:'num',v:Math.E});
+      else { for(var q=0;q<w.length;q++){ if(w[q]==='x'||w[q]==='y') toks.push({t:'var',v:w[q]}); else throw new Error('Neznámy symbol „'+w+'“'); } }
+      i = j; continue;
+    }
+    if('+-*/^()'.indexOf(c) >= 0){ toks.push({t:'op',v:c}); i++; continue; }
+    throw new Error('Neznámy znak „'+c+'“');
+  }
+  var p = 0;
+  function peek(){ return toks[p]; }
+  function isOp(t,v){ return t && t.t==='op' && t.v===v; }
+  function expect(v){ var t = toks[p++]; if(!isOp(t,v)) throw new Error('Chýba „'+v+'“'); }
+  function starts(t){ return t && (t.t==='num'||t.t==='var'||t.t==='fn'||isOp(t,'(')); }
+  function expr(){
+    var l = term();
+    while(isOp(peek(),'+')||isOp(peek(),'-')){
+      var op = toks[p++].v, r = term(), a = l;
+      l = op==='+' ? (function(a,r){return function(x,y){return a(x,y)+r(x,y);};})(a,r)
+                   : (function(a,r){return function(x,y){return a(x,y)-r(x,y);};})(a,r);
+    }
+    return l;
+  }
+  function term(){
+    var l = unary();
+    for(;;){
+      var t = peek(), op = null;
+      if(!t) break;
+      if(isOp(t,'*')||isOp(t,'/')){ op = t.v; p++; }
+      else if(starts(t)){ op = '*'; }
+      else break;
+      var r = unary(), a = l;
+      l = op==='*' ? (function(a,r){return function(x,y){return a(x,y)*r(x,y);};})(a,r)
+                   : (function(a,r){return function(x,y){return a(x,y)/r(x,y);};})(a,r);
+    }
+    return l;
+  }
+  function unary(){
+    var t = peek();
+    if(isOp(t,'-')){ p++; var u = unary(); return function(x,y){ return -u(x,y); }; }
+    if(isOp(t,'+')){ p++; return unary(); }
+    return pow();
+  }
+  function pow(){
+    var b = atom();
+    if(isOp(peek(),'^')){ p++; var e = unary(); return function(x,y){ return Math.pow(b(x,y),e(x,y)); }; }
+    return b;
+  }
+  function atom(){
+    var t = toks[p++];
+    if(!t) throw new Error('Výraz je neúplný');
+    if(t.t==='num'){ var v = t.v; return function(){ return v; }; }
+    if(t.t==='var'){ return t.v==='x' ? function(x){ return x; } : function(x,y){ return y; }; }
+    if(t.t==='fn'){ expect('('); var a = expr(); expect(')'); var f = FN[t.v]; return function(x,y){ return f(a(x,y)); }; }
+    if(isOp(t,'(')){ var b = expr(); expect(')'); return b; }
+    throw new Error('Neočakávaný znak „'+t.v+'“');
+  }
+  if(!toks.length) throw new Error('Funkcia je prázdna');
+  var fn = expr();
+  if(p < toks.length) throw new Error('Neočakávaný znak „'+toks[p].v+'“');
+  var test = fn(1,1);
+  if(typeof test !== 'number') throw new Error('Výraz sa nedá vyhodnotiť');
+  return fn;
+}
+
+/* ---------- príklady ---------- */
+var PRESETS = [
+  {id:'dom', name:'Domáca úloha: x² − 4x + y² − y − xy', fn:'x^2 - 4x + y^2 - y - x*y', v:[[0,1],[1,1],[0,1.5]], eps:0.001, view:{cx:1.8,cy:1.2,hw:3.4}},
+  {id:'cv1', name:'Cvičenie: x² + 2y²', fn:'x^2 + 2y^2', v:[[2,2],[2,1],[1,2]], eps:0.001, view:{cx:0.8,cy:0.8,hw:3}},
+  {id:'cv2', name:'Cvičenie: (x−2)² + 3(y−1)²', fn:'(x-2)^2 + 3(y-1)^2', v:[[0,0],[2,0],[0,2]], eps:0.001, view:{cx:1.4,cy:1,hw:3}},
+  {id:'pre', name:'Prednáška: x² + y² + x − 2y − xy + 2', fn:'x^2 + y^2 + x - 2y - x*y + 2', v:[[1.2,0],[0,0.8],[0,0]], eps:0.001, view:{cx:0.5,cy:0.7,hw:2.4}},
+  {id:'cus', name:'Vlastná funkcia', fn:null}
+];
+
+/* ---------- stav ---------- */
+var F = null, P = null, init = [], states = [], iters = [], pos = 0, timer = null;
+var view = {cx:0,cy:0,hw:3}, homeView = {cx:0,cy:0,hw:3}, pendingView = null;
+var cv = $('cv'), ctx = cv.getContext('2d');
+var bgc = document.createElement('canvas'), tmp = document.createElement('canvas'), bgKey = '', dragging = false;
+
+function mk(x,y){ return {x:x,y:y,f:F(x,y)}; }
+function maxDist(pts){ var a = pts[0], d = 0; for(var i=1;i<pts.length;i++){ d = Math.max(d, Math.hypot(pts[i].x-a.x, pts[i].y-a.y)); } return d; }
+function mkState(pts){ return {pts:pts, d:maxDist(pts)}; }
+function fmt(v){
+  if(!isFinite(v)) return String(v);
+  if(v === 0) return '0';
+  if(Math.abs(v) < 1e-4) return v.toExponential(2);
+  return String(parseFloat(v.toFixed(4)));
+}
+function pt(p){ return '('+fmt(p.x)+', '+fmt(p.y)+')'; }
+function done(st){ return st.d < P.eps; }
+
+function nmStep(st){
+  var A = st.pts[0], B = st.pts[1], C = st.pts[2], al = P.al, ga = P.ga, rho = P.rho, sig = P.sig;
+  var M = {x:(A.x+B.x)/2, y:(A.y+B.y)/2};
+  var R = mk(M.x + al*(M.x-C.x), M.y + al*(M.y-C.y));
+  var it = {A:A,B:B,C:C,M:M,R:R,E:null,K:null,action:'',accepted:null}, np;
+  if(A.f <= R.f && R.f < B.f){ it.action = 'reflexia'; it.accepted = 'R'; np = [A,B,R]; }
+  else if(R.f < A.f){
+    var E = mk(M.x + ga*(R.x-M.x), M.y + ga*(R.y-M.y)); it.E = E;
+    if(E.f < R.f){ it.action = 'expanzia'; it.accepted = 'E'; np = [A,B,E]; }
+    else { it.action = 'reflexia (po expanzii)'; it.accepted = 'R'; np = [A,B,R]; }
+  } else {
+    var K = mk(M.x + rho*(C.x-M.x), M.y + rho*(C.y-M.y)); it.K = K;
+    if(K.f < C.f){ it.action = 'kontrakcia'; it.accepted = 'K'; np = [A,B,K]; }
+    else {
+      var B2 = mk(A.x + sig*(B.x-A.x), A.y + sig*(B.y-A.y)), C2 = mk(A.x + sig*(C.x-A.x), A.y + sig*(C.y-A.y));
+      it.action = 'zmrštenie'; it.B2 = B2; it.C2 = C2; np = [A,B2,C2];
+    }
+  }
+  np = np.slice().sort(function(a,b){ return a.f-b.f; });
+  return {state:mkState(np), it:it};
+}
+
+/* ---------- použitie zadania ---------- */
+function err(t){ $('err').textContent = t || ''; }
+function num(id, name){
+  var v = parseFloat($(id).value);
+  if(!isFinite(v)) throw new Error('Pole „'+name+'“ nie je číslo.');
+  return v;
+}
+function apply(){
+  stop(); err('');
+  try{
+    var fn;
+    try{ fn = compile($('fn').value); } catch(e){ throw new Error('Funkcia: '+e.message); }
+    F = fn;
+    var pts = [];
+    for(var i=0;i<3;i++){
+      var x = num('v'+i+'x','V'+(i+1)+' x'), y = num('v'+i+'y','V'+(i+1)+' y');
+      var q = {x:x,y:y,f:fn(x,y)};
+      if(!isFinite(q.f)) throw new Error('Funkcia nemá v bode V'+(i+1)+' konečnú hodnotu.');
+      pts.push(q);
+    }
+    var area = (pts[1].x-pts[0].x)*(pts[2].y-pts[0].y) - (pts[2].x-pts[0].x)*(pts[1].y-pts[0].y);
+    if(Math.abs(area) < 1e-12) throw new Error('Vrcholy ležia na jednej priamke, trojuholník je degenerovaný.');
+    var np = {al:num('pal','α'), ga:num('pga','γ'), rho:num('prho','ρ'), sig:num('psig','σ'), eps:num('peps','ε')};
+    if(np.eps <= 0) throw new Error('ε musí byť kladné.');
+    P = np; init = pts;
+    states = [mkState(pts.slice().sort(function(a,b){ return a.f-b.f; }))];
+    iters = []; pos = 0;
+    var bx = [], by = [];
+    pts.forEach(function(p){ bx.push(p.x); by.push(p.y); });
+    if(pendingView){ homeView = {cx:pendingView.cx,cy:pendingView.cy,hw:pendingView.hw}; pendingView = null; }
+    else {
+      var x0 = Math.min.apply(null,bx), x1 = Math.max.apply(null,bx), y0 = Math.min.apply(null,by), y1 = Math.max.apply(null,by);
+      homeView = {cx:(x0+x1)/2, cy:(y0+y1)/2, hw:Math.max((x1-x0)*2.2, (y1-y0)*2.2*(cv.clientWidth||4)/(cv.clientHeight||3), 2)};
+    }
+    view = {cx:homeView.cx, cy:homeView.cy, hw:homeView.hw};
+    render();
+  } catch(e){ err(e.message); }
+}
+
+/* ---------- krokovanie ---------- */
+function stepForward(){
+  if(pos < states.length-1){ pos++; }
+  else {
+    if(done(states[pos]) || iters.length >= 500) { stop(); return; }
+    var r = nmStep(states[pos]);
+    iters.push(r.it); states.push(r.state); pos++;
+  }
+  if($('auto').checked) expandView();
+  render();
+  if(done(states[pos]) && pos === states.length-1) stop();
+}
+function stepBack(){ if(pos > 0){ stop(); pos--; render(); } }
+function run(){
+  if(timer){ stop(); return; }
+  if(done(states[pos]) && pos === states.length-1){ return; }
+  $('bRun').textContent = 'Zastaviť';
+  timer = setInterval(stepForward, 650);
+}
+function stop(){ if(timer){ clearInterval(timer); timer = null; } $('bRun').textContent = 'Spustiť'; }
+
+/* ---------- pohľad ---------- */
+function dims(){ return {W:cv.clientWidth, H:cv.clientHeight}; }
+function boxOf(pts){
+  var x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+  pts.forEach(function(p){ x0=Math.min(x0,p.x); x1=Math.max(x1,p.x); y0=Math.min(y0,p.y); y1=Math.max(y1,p.y); });
+  return {x0:x0,x1:x1,y0:y0,y1:y1};
+}
+function focusPts(){
+  var pts = states[pos].pts.slice();
+  if(pos > 0){ var it = iters[pos-1]; [it.M,it.R,it.E,it.K,it.A,it.B,it.C].forEach(function(p){ if(p) pts.push(p); }); }
+  return pts;
+}
+function expandView(){
+  var d = dims(); if(!d.W) return;
+  var b = boxOf(focusPts()), padx = (b.x1-b.x0)*0.15+0.05, pady = (b.y1-b.y0)*0.15+0.05;
+  var hh = view.hw*d.H/d.W;
+  var inner = 0.88;
+  var vx0 = view.cx-view.hw*inner, vx1 = view.cx+view.hw*inner, vy0 = view.cy-hh*inner, vy1 = view.cy+hh*inner;
+  if(b.x0 >= vx0 && b.x1 <= vx1 && b.y0 >= vy0 && b.y1 <= vy1) return;
+  var ux0 = Math.min(view.cx-view.hw, b.x0-padx), ux1 = Math.max(view.cx+view.hw, b.x1+padx);
+  var uy0 = Math.min(view.cy-hh, b.y0-pady), uy1 = Math.max(view.cy+hh, b.y1+pady);
+  view.cx = (ux0+ux1)/2; view.cy = (uy0+uy1)/2;
+  view.hw = Math.max((ux1-ux0)/2, (uy1-uy0)/2*d.W/d.H);
+}
+function fitSimplex(){
+  var d = dims(); if(!d.W) return;
+  var b = boxOf(focusPts());
+  var spanx = Math.max(b.x1-b.x0, 1e-9), spany = Math.max(b.y1-b.y0, 1e-9);
+  view.cx = (b.x0+b.x1)/2; view.cy = (b.y0+b.y1)/2;
+  view.hw = Math.max(spanx*0.8, spany*0.8*d.W/d.H, 1e-6);
+}
+function setAuto(v){ $('auto').checked = v; }
+
+/* ---------- kreslenie ---------- */
+function tok(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function hexRGB(c){ var h = c.replace('#',''); if(h.length===3) h = h.replace(/(.)/g,'$1$1'); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+function niceStep(span){ var raw = span/6, p = Math.pow(10, Math.floor(Math.log10(raw))), n = raw/p; return (n<1.5?1:n<3.5?2:n<7.5?5:10)*p; }
+
+function ensureBg(W,H,dpr){
+  var cell = Math.max(1, Math.round((dragging?4:1.5)*dpr));
+  var lo = tok('--lo'), hi = tok('--hi'), iso = tok('--iso');
+  var key = [W,H,dpr,cell,view.cx,view.cy,view.hw,$('fn').value,lo,hi,iso].join('|');
+  if(key === bgKey) return;
+  bgKey = key;
+  var Wd = Math.round(W*dpr), Hd = Math.round(H*dpr);
+  bgc.width = Wd; bgc.height = Hd;
+  var gw = Math.ceil(Wd/cell), gh = Math.ceil(Hd/cell);
+  var vals = new Float32Array(gw*gh), mn = Infinity, mx = -Infinity;
+  var sc = W/(2*view.hw);
+  for(var j=0;j<gh;j++){
+    var yy = view.cy - ((j+0.5)*cell/dpr - H/2)/sc;
+    for(var i=0;i<gw;i++){
+      var xx = view.cx + ((i+0.5)*cell/dpr - W/2)/sc;
+      var v = F(xx,yy);
+      vals[j*gw+i] = v;
+      if(isFinite(v)){ if(v<mn) mn=v; if(v>mx) mx=v; }
+    }
+  }
+  var N = 14, band = new Int16Array(gw*gh), rng = (mx-mn) || 1;
+  for(var k=0;k<vals.length;k++){
+    var vv = vals[k];
+    band[k] = isFinite(vv) ? Math.min(N-1, Math.floor(Math.sqrt((vv-mn)/rng)*N)) : -1;
+  }
+  tmp.width = gw; tmp.height = gh;
+  var tctx = tmp.getContext('2d'), img = tctx.createImageData(gw,gh);
+  var cLo = hexRGB(lo), cHi = hexRGB(hi), cIso = hexRGB(iso);
+  for(var jj=0;jj<gh;jj++){
+    for(var ii=0;ii<gw;ii++){
+      var id = jj*gw+ii, b = band[id], o = id*4, col;
+      if(b < 0){ col = cHi; }
+      else if((ii+1<gw && band[id+1]!==b) || (jj+1<gh && band[id+gw]!==b)){ col = cIso; }
+      else { var t = b/(N-1); col = [cLo[0]+(cHi[0]-cLo[0])*t, cLo[1]+(cHi[1]-cLo[1])*t, cLo[2]+(cHi[2]-cLo[2])*t]; }
+      img.data[o] = col[0]; img.data[o+1] = col[1]; img.data[o+2] = col[2]; img.data[o+3] = 255;
+    }
+  }
+  tctx.putImageData(img,0,0);
+  var bctx = bgc.getContext('2d');
+  bctx.imageSmoothingEnabled = false;
+  bctx.drawImage(tmp,0,0,gw*cell,gh*cell);
+}
+
+function halo(text,x,y,color,bg){
+  ctx.lineWidth = 3; ctx.strokeStyle = bg; ctx.lineJoin = 'round'; ctx.strokeText(text,x,y);
+  ctx.fillStyle = color; ctx.fillText(text,x,y);
+}
+
+function draw(){
+  var W = cv.clientWidth, H = cv.clientHeight;
+  if(!W || !H || !F || !states.length) return;
+  var dpr = window.devicePixelRatio || 1;
+  var cw = Math.round(W*dpr), ch = Math.round(H*dpr);
+  if(cv.width !== cw || cv.height !== ch){ cv.width = cw; cv.height = ch; }
+  ensureBg(W,H,dpr);
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.drawImage(bgc,0,0,cw,ch);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  var sc = W/(2*view.hw);
+  var sx = function(x){ return (x-view.cx)*sc + W/2; };
+  var sy = function(y){ return H/2 - (y-view.cy)*sc; };
+  var fg = tok('--fg'), bg = tok('--surface'), muted = tok('--muted'), accent = tok('--accent');
+  var cBest = tok('--best'), cGood = tok('--good'), cWorst = tok('--worst');
+
+  // osi a rozdelenie
+  var hh = view.hw*H/W, step = niceStep(2*view.hw);
+  ctx.font = '11px '+tok('--mono'); ctx.textBaseline = 'alphabetic';
+  ctx.strokeStyle = muted; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
+  if(view.cx-view.hw < 0 && view.cx+view.hw > 0){ ctx.beginPath(); ctx.moveTo(sx(0),0); ctx.lineTo(sx(0),H); ctx.stroke(); }
+  if(view.cy-hh < 0 && view.cy+hh > 0){ ctx.beginPath(); ctx.moveTo(0,sy(0)); ctx.lineTo(W,sy(0)); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'center';
+  for(var tx = Math.ceil((view.cx-view.hw)/step)*step; tx <= view.cx+view.hw; tx += step){
+    ctx.beginPath(); ctx.moveTo(sx(tx),H); ctx.lineTo(sx(tx),H-5); ctx.strokeStyle = muted; ctx.stroke();
+    halo(String(parseFloat(tx.toFixed(8))), sx(tx), H-9, fg, bg);
+  }
+  ctx.textAlign = 'left';
+  for(var ty = Math.ceil((view.cy-hh)/step)*step; ty <= view.cy+hh; ty += step){
+    ctx.beginPath(); ctx.moveTo(0,sy(ty)); ctx.lineTo(5,sy(ty)); ctx.strokeStyle = muted; ctx.stroke();
+    halo(String(parseFloat(ty.toFixed(8))), 8, sy(ty)+4, fg, bg);
+  }
+  ctx.font = '600 12px '+tok('--mono'); ctx.textAlign = 'right';
+  halo('x', W-6, H-22, fg, bg); ctx.textAlign = 'left'; halo('y', 8, 14, fg, bg);
+
+  function tri(pts){ ctx.beginPath(); ctx.moveTo(sx(pts[0].x),sy(pts[0].y)); ctx.lineTo(sx(pts[1].x),sy(pts[1].y)); ctx.lineTo(sx(pts[2].x),sy(pts[2].y)); ctx.closePath(); }
+
+  // stopa: staré trojuholníky
+  ctx.lineWidth = 1; ctx.strokeStyle = fg; ctx.globalAlpha = 0.28; ctx.setLineDash([]);
+  for(var k=0;k<pos-1;k++){ tri(states[k].pts); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+
+  var it = pos > 0 ? iters[pos-1] : null;
+  if(it){
+    // predošlý simplex prerušovane
+    ctx.setLineDash([5,4]); ctx.lineWidth = 1.5; ctx.strokeStyle = fg; ctx.globalAlpha = 0.75;
+    tri(states[pos-1].pts); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    // priamka najhorší bod -> ťažisko -> skúšobné body
+    var far = it.E || it.R;
+    if(it.K) far = it.K;
+    ctx.strokeStyle = accent; ctx.lineWidth = 1.2; ctx.setLineDash([2,3]);
+    ctx.beginPath(); ctx.moveTo(sx(it.C.x),sy(it.C.y)); ctx.lineTo(sx(it.M.x),sy(it.M.y)); ctx.lineTo(sx(far.x),sy(far.y)); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // aktuálny simplex
+  tri(states[pos].pts);
+  ctx.fillStyle = accent; ctx.globalAlpha = 0.18; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.strokeStyle = accent; ctx.lineWidth = 2.2; ctx.stroke();
+
+  if(it){
+    ctx.font = '600 12px '+tok('--mono'); ctx.textAlign = 'left';
+    var diamond = function(p,label,filled){
+      var x = sx(p.x), y = sy(p.y), r = 6;
+      ctx.beginPath(); ctx.moveTo(x,y-r); ctx.lineTo(x+r,y); ctx.lineTo(x,y+r); ctx.lineTo(x-r,y); ctx.closePath();
+      ctx.lineWidth = 2; ctx.strokeStyle = accent; ctx.fillStyle = filled ? accent : bg; ctx.fill(); ctx.stroke();
+      halo(label, x+9, y-8, fg, bg);
+    };
+    var ring = function(p,label){
+      var x = sx(p.x), y = sy(p.y);
+      ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2); ctx.lineWidth = 1.5; ctx.strokeStyle = fg; ctx.fillStyle = bg; ctx.fill(); ctx.stroke();
+      halo(label, x+7, y+14, fg, bg);
+    };
+    ring(it.M,'M');
+    diamond(it.R,'R',it.accepted==='R');
+    if(it.E) diamond(it.E,'E',it.accepted==='E');
+    if(it.K) diamond(it.K,'K',it.accepted==='K');
+  }
+  // vrcholy A B C
+  var roles = [['A',cBest],['B',cGood],['C',cWorst]];
+  states[pos].pts.forEach(function(p,i){
+    var x = sx(p.x), y = sy(p.y);
+    ctx.beginPath(); ctx.arc(x,y,6.5,0,Math.PI*2); ctx.fillStyle = roles[i][1]; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = bg; ctx.stroke();
+    ctx.font = '800 13px '+tok('--ui'); ctx.textAlign = 'left';
+    halo(roles[i][0], x+10, y+5, fg, bg);
+  });
+}
+
+/* ---------- výpis ---------- */
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function li(lab, html){ return '<li><span class="lab">'+lab+'</span><span class="m">'+html+'</span></li>'; }
+function yes(c){ return c ? '<span class="ok">áno</span>' : '<span class="no">nie</span>'; }
+function renderLog(){
+  var out = '', title;
+  var P_ = P;
+  if(pos === 0){
+    title = 'Začiatok: ohodnotenie vrcholov';
+    init.forEach(function(p,i){ out += li('V'+(i+1), pt(p)+' &nbsp; f = '+fmt(p.f)); });
+    var s = states[0].pts;
+    out += li('Zoradenie', 'f(A) ≤ f(B) ≤ f(C)<br>A = '+pt(s[0])+' najlepší, f = '+fmt(s[0].f)+'<br>B = '+pt(s[1])+' dobrý, f = '+fmt(s[1].f)+'<br>C = '+pt(s[2])+' najhorší, f = '+fmt(s[2].f));
+    out += li('Ďalej', 'Stlač „Krok“. Každá iterácia nahradí najhorší bod C lepším.');
+  } else {
+    var it = iters[pos-1], A = it.A, B = it.B, C = it.C, M = it.M, R = it.R;
+    title = 'Iterácia '+pos;
+    out += li('Zoradenie', 'A = '+pt(A)+', f = '+fmt(A.f)+'<br>B = '+pt(B)+', f = '+fmt(B.f)+'<br>C = '+pt(C)+', f = '+fmt(C.f));
+    out += li('Ťažisko', 'M = (A + B) / 2 = '+pt(M));
+    out += li('Reflexia', 'R = M + α(M − C) = '+pt(R)+'<br>f(R) = '+fmt(R.f)+'<br>f(A) ≤ f(R) &lt; f(B)? &nbsp;'+fmt(A.f)+' ≤ '+fmt(R.f)+' &lt; '+fmt(B.f)+' &nbsp;'+yes(A.f <= R.f && R.f < B.f));
+    if(it.action === 'reflexia'){
+      out += li('Akcia', '<span class="act">Stačí reflexia:</span> C := R');
+    } else if(it.E){
+      out += li('Expanzia', 'f(R) &lt; f(A), teda ideme ďalej:<br>E = M + γ(R − M) = '+pt(it.E)+'<br>f(E) = '+fmt(it.E.f)+'<br>f(E) &lt; f(R)? &nbsp;'+fmt(it.E.f)+' &lt; '+fmt(R.f)+' &nbsp;'+yes(it.E.f < R.f));
+      out += li('Akcia', it.action === 'expanzia' ? '<span class="act">Expanzia:</span> C := E' : '<span class="act">Expanzia nepomohla:</span> C := R');
+    } else {
+      out += li('Kontrakcia', 'f(R) ≥ f(B), reflexia nestačí:<br>K = M + ρ(C − M) = '+pt(it.K)+'<br>f(K) = '+fmt(it.K.f)+'<br>f(K) &lt; f(C)? &nbsp;'+fmt(it.K.f)+' &lt; '+fmt(C.f)+' &nbsp;'+yes(it.K.f < C.f));
+      if(it.action === 'kontrakcia') out += li('Akcia', '<span class="act">Kontrakcia:</span> C := K');
+      else out += li('Zmrštenie', 'Nič nepomohlo, body B a C ťaháme k A:<br>B := A + σ(B − A) = '+pt(it.B2)+'<br>C := A + σ(C − A) = '+pt(it.C2));
+    }
+    var ns = states[pos];
+    out += li('Nový simplex', 'A = '+pt(ns.pts[0])+', f = '+fmt(ns.pts[0].f)+'<br>B = '+pt(ns.pts[1])+', f = '+fmt(ns.pts[1].f)+'<br>C = '+pt(ns.pts[2])+', f = '+fmt(ns.pts[2].f));
+    out += li('Zastavenie', 'd = max |V − A| = '+fmt(ns.d)+'<br>d &lt; ε = '+fmt(P_.eps)+'? &nbsp;'+yes(ns.d < P_.eps)+(ns.d < P_.eps ? '' : ' , pokračujeme'));
+  }
+  $('logTitle').textContent = title;
+  $('calc').innerHTML = out;
+}
+function renderTable(){
+  var rows = '';
+  for(var k=0;k<=pos;k++){
+    var s = states[k], a = s.pts;
+    rows += '<tr'+(k===pos?' class="cur"':'')+'><td><button class="rowbtn" type="button" data-k="'+k+'">'+k+'</button></td><td>'+pt(a[0])+'</td><td>'+fmt(a[0].f)+'</td><td>'+pt(a[1])+'</td><td>'+pt(a[2])+'</td><td>'+fmt(s.d)+'</td><td>'+(k===0?'začiatok':esc(iters[k-1].action))+'</td></tr>';
+  }
+  $('tbody').innerHTML = rows;
+  var cur = $('tbody').querySelector('tr.cur');
+  if(cur && cur.scrollIntoView){ var box = cur.parentNode.parentNode.parentNode; box.scrollTop = Math.max(0, cur.offsetTop - box.clientHeight + 40); }
+}
+function renderStatus(){
+  var st = states[pos], fin = done(st);
+  $('status').innerHTML = '<span>iterácia '+pos+'</span><span>d = '+fmt(st.d)+'</span><span>ε = '+fmt(P.eps)+'</span><span>f(A) = '+fmt(st.pts[0].f)+'</span>';
+  $('result').innerHTML = fin ? '<div class="result">Hotovo: d = '+fmt(st.d)+' &lt; ε. Výsledok je najlepší vrchol A = '+pt(st.pts[0])+', f(A) = '+fmt(st.pts[0].f)+'.</div>' : '';
+  $('bBack').disabled = pos === 0;
+  $('bStep').disabled = (pos === states.length-1) && fin;
+  $('bRun').disabled = (pos === states.length-1) && fin;
+}
+function render(){
+  renderLog(); renderTable(); renderStatus(); draw();
+}
+var raf = 0;
+function schedule(){ if(raf) return; raf = requestAnimationFrame(function(){ raf = 0; draw(); }); }
+
+/* ---------- ovládanie ---------- */
+(function initUI(){
+  var sel = $('preset');
+  PRESETS.forEach(function(p){ var o = document.createElement('option'); o.value = p.id; o.textContent = p.name; sel.appendChild(o); });
+  function loadPreset(id){
+    var p = PRESETS.filter(function(q){ return q.id === id; })[0];
+    if(!p || !p.fn) return;
+    $('fn').value = p.fn;
+    for(var i=0;i<3;i++){ $('v'+i+'x').value = p.v[i][0]; $('v'+i+'y').value = p.v[i][1]; }
+    $('peps').value = p.eps; $('pal').value = 1; $('pga').value = 2; $('prho').value = 0.5; $('psig').value = 0.5;
+    pendingView = p.view; setAuto(true);
+    apply();
+  }
+  sel.addEventListener('change', function(){ loadPreset(sel.value); });
+  $('fn').addEventListener('input', function(){ sel.value = 'cus'; });
+  ['fn','v0x','v0y','v1x','v1y','v2x','v2y','pal','pga','prho','psig','peps'].forEach(function(id){
+    $(id).addEventListener('change', function(){ apply(); });
+    $(id).addEventListener('keydown', function(e){ if(e.key === 'Enter') apply(); });
+  });
+  $('bApply').addEventListener('click', apply);
+  $('bStep').addEventListener('click', function(){ stop(); stepForward(); });
+  $('bBack').addEventListener('click', stepBack);
+  $('bRun').addEventListener('click', run);
+  $('bReset').addEventListener('click', function(){ stop(); pos = 0; view = {cx:homeView.cx,cy:homeView.cy,hw:homeView.hw}; render(); });
+  $('zIn').addEventListener('click', function(){ view.hw /= 1.5; setAuto(false); draw(); });
+  $('zOut').addEventListener('click', function(){ view.hw *= 1.5; setAuto(false); draw(); });
+  $('zFit').addEventListener('click', function(){ fitSimplex(); setAuto(false); draw(); });
+  $('zHome').addEventListener('click', function(){ view = {cx:homeView.cx,cy:homeView.cy,hw:homeView.hw}; setAuto(true); draw(); });
+  $('tbody').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('.rowbtn') : null;
+    if(!b) return; stop(); pos = parseInt(b.getAttribute('data-k'),10); render();
+  });
+
+  var drag = null;
+  cv.addEventListener('pointerdown', function(e){
+    drag = {x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy,id:e.pointerId};
+    try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+    cv.style.cursor = 'grabbing';
+  });
+  cv.addEventListener('pointermove', function(e){
+    if(!drag) return;
+    var sc = cv.clientWidth/(2*view.hw);
+    view.cx = drag.cx - (e.clientX-drag.x)/sc; view.cy = drag.cy + (e.clientY-drag.y)/sc;
+    dragging = true; setAuto(false); schedule();
+  });
+  function endDrag(){ if(!drag) return; drag = null; dragging = false; cv.style.cursor = 'grab'; draw(); }
+  cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+
+  if(window.ResizeObserver){ new ResizeObserver(function(){ schedule(); }).observe(cv); }
+  window.addEventListener('resize', schedule);
+  new MutationObserver(function(){ schedule(); }).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  if(window.matchMedia){ var mq = window.matchMedia('(prefers-color-scheme: dark)'); if(mq.addEventListener) mq.addEventListener('change', schedule); }
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
+
+  sel.value = 'dom';
+  loadPreset('dom');
+  // otvor v rozpracovanom stave: dve iterácie hotové
+  if(states.length){ stepForward(); stepForward(); }
+})();
+})();
+</script>
