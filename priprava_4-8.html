@@ -1,0 +1,1532 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MATH AI – príprava 4–8</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- math.js: symbolické derivácie. Bez internetu stránka funguje ďalej s numerickými deriváciami. -->
+<script src="https://cdn.jsdelivr.net/npm/mathjs@12.4.2/lib/browser/math.js"></script>
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f1f3f6; --ink:#16181d; --muted:#5d6472; --line:#e1e4ea;
+  --accent:#2f55d4; --accent-ink:#ffffff; --accent-soft:#e8edfc; --accent-line:#c3d0f6;
+  --ok:#1d7a46; --ok-soft:#e3f4ea; --bad:#b4282d; --bad-soft:#fbe7e7; --warn:#9a6400; --warn-soft:#fdf3dc;
+  --code:#f3f4f7; --hl:#fff4c2;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.06);
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1115; --surface:#171a21; --surface-2:#1e222b; --ink:#e7e9ee; --muted:#9aa2b1; --line:#2a2f3a;
+    --accent:#7d9bff; --accent-ink:#0d1020; --accent-soft:#1d2540; --accent-line:#33427a;
+    --ok:#5fd394; --ok-soft:#14301f; --bad:#ff8a8f; --bad-soft:#3a1719; --warn:#f2c06b; --warn-soft:#352a12;
+    --code:#1c2029; --hl:#3a3415; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1115; --surface:#171a21; --surface-2:#1e222b; --ink:#e7e9ee; --muted:#9aa2b1; --line:#2a2f3a;
+  --accent:#7d9bff; --accent-ink:#0d1020; --accent-soft:#1d2540; --accent-line:#33427a;
+  --ok:#5fd394; --ok-soft:#14301f; --bad:#ff8a8f; --bad-soft:#3a1719; --warn:#f2c06b; --warn-soft:#352a12;
+  --code:#1c2029; --hl:#3a3415; --shadow:none;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+h1,h2,h3,h4{line-height:1.25;margin:0}
+code,.m{font-family:var(--mono);font-size:.92em}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+
+/* header + nav */
+header.top{padding:28px 0 18px;border-bottom:1px solid var(--line);background:var(--surface)}
+header.top h1{font-size:26px;font-weight:700;letter-spacing:-.01em}
+header.top p{margin:6px 0 0;color:var(--muted);max-width:760px}
+.exam{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap}
+.pill{display:inline-block;padding:5px 10px;border-radius:999px;background:var(--accent-soft);color:var(--ink);font-size:13px;border:1px solid var(--accent-line)}
+.pill b{color:var(--accent)}
+nav.bar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav.bar .wrap{display:flex;align-items:center;gap:6px;overflow-x:auto;padding-top:8px;padding-bottom:8px;scrollbar-width:thin}
+nav.bar a{flex:none;text-decoration:none;color:var(--muted);font-size:13.5px;font-weight:500;padding:6px 10px;border-radius:8px;white-space:nowrap}
+nav.bar a:hover{background:var(--surface-2);color:var(--ink)}
+nav.bar .sep{flex:none;width:1px;height:18px;background:var(--line);margin:0 4px}
+nav.bar .tools{margin-left:auto;display:flex;gap:6px;align-items:center;flex:none}
+nav.bar select,nav.bar button{font:inherit;font-size:13px;padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+
+section.sec{padding:34px 0 8px}
+section.sec>.wrap>h2{font-size:21px;font-weight:700;margin-bottom:4px}
+section.sec>.wrap>p.lead{color:var(--muted);margin:0 0 18px}
+.grp-title{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:22px 0 10px}
+
+/* notes */
+.notes{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:14px}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+.note h3{font-size:15.5px;font-weight:650;margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.note h3 .src{font-size:11px;font-weight:600;color:var(--muted);background:var(--surface-2);border-radius:6px;padding:1px 6px}
+.note ul{margin:0;padding-left:18px}
+.note li{margin:3px 0}
+.f{display:block;font-family:var(--mono);font-size:13.5px;background:var(--code);border-radius:8px;padding:7px 10px;margin:6px 0;overflow-x:auto;white-space:nowrap}
+.k{background:var(--hl);padding:0 3px;border-radius:3px}
+
+/* examples list */
+.ex-table{width:100%;border-collapse:separate;border-spacing:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+.ex-table th,.ex-table td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}
+.ex-table th{background:var(--surface-2);font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+.ex-table tr:last-child td{border-bottom:none}
+.ex-table td.src{white-space:nowrap;color:var(--muted);font-size:12.5px}
+.ex-table td .ans{color:var(--muted);font-size:13px}
+.ex-scroll{overflow-x:auto}
+
+/* calculators */
+.calc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:16px 0 22px;box-shadow:var(--shadow)}
+.calc-head{display:flex;gap:14px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+.calc-head h3{font-size:18px;font-weight:700}
+.calc-head .sub{margin:2px 0 0;color:var(--muted);font-size:13.5px;max-width:640px}
+.preset{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);font-weight:600;min-width:260px;max-width:100%}
+.preset select{font:inherit;font-size:13.5px;font-weight:500;color:var(--ink);padding:7px 9px;border-radius:9px;border:1px solid var(--accent-line);background:var(--accent-soft);max-width:100%}
+.formula{margin:12px 0 4px;font-family:var(--mono);font-size:13.5px;background:var(--code);border-radius:9px;padding:9px 12px;overflow-wrap:anywhere}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(150px,100%),1fr));gap:10px 12px;margin-top:12px}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld.w2{grid-column:span 2}
+.fld.full{grid-column:1/-1}
+.fld label{font-size:12.5px;color:var(--muted);font-weight:600}
+.fld input[type=text],.fld select,.fld textarea{font:inherit;font-family:var(--mono);font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 10px;width:100%;min-width:0}
+.fld select{font-family:var(--sans)}
+.fld textarea{min-height:120px;resize:vertical;line-height:1.5}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:2px solid var(--accent-line);border-color:var(--accent)}
+.fld .hint{font-size:12px;color:var(--muted)}
+.fld.chk{flex-direction:row;align-items:center;gap:8px;padding-top:20px}
+.fld.chk label{font-weight:500;color:var(--ink)}
+.sym{margin-top:10px;font-size:13.5px;color:var(--muted)}
+.sym:empty{display:none}
+.sym .m{color:var(--ink)}
+.actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.btn{font:inherit;font-size:14px;font-weight:600;padding:8px 16px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.sm{font-size:12.5px;padding:4px 10px}
+.out:empty{display:none}
+.out{margin-top:16px;border-top:1px dashed var(--line);padding-top:14px}
+.err{background:var(--bad-soft);color:var(--bad);padding:10px 12px;border-radius:9px;font-weight:500}
+.res{background:var(--ok-soft);border:1px solid color-mix(in srgb,var(--ok) 35%,transparent);border-radius:10px;padding:10px 14px;margin:8px 0 12px;font-size:14.5px}
+.res b{font-family:var(--mono)}
+.warnbox{background:var(--warn-soft);color:var(--ink);border-left:3px solid var(--warn);padding:8px 12px;border-radius:6px;margin:8px 0;font-size:14px}
+.it{border:1px solid var(--line);border-radius:10px;margin:10px 0;overflow:hidden}
+.it-h{background:var(--surface-2);padding:6px 12px;font-weight:650;font-size:13.5px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.it-h .tag{font-weight:600}
+.it-b{padding:8px 12px;overflow-x:auto}
+.ln{font-family:var(--mono);font-size:13.5px;padding:2px 0;overflow-wrap:anywhere}
+.ln.c{font-family:var(--sans);white-space:normal;color:var(--muted)}
+.ln b{color:var(--accent)}
+.tag{display:inline-block;font-family:var(--sans);font-size:12px;font-weight:600;padding:1px 8px;border-radius:999px}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.tag.info{background:var(--accent-soft);color:var(--accent)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.tbl-wrap{overflow-x:auto;margin:8px 0}
+table.t{border-collapse:collapse;font-family:var(--mono);font-size:13px;min-width:100%}
+table.t th,table.t td{border-bottom:1px solid var(--line);padding:5px 9px;text-align:right;white-space:nowrap}
+table.t th{font-family:var(--sans);font-size:12px;color:var(--muted);font-weight:600;background:var(--surface-2);position:sticky;top:0}
+table.t td.l,table.t th.l{text-align:left}
+table.t tr.hl td{background:var(--accent-soft)}
+table.t tr.sepr td{border-top:2px solid var(--line)}
+.mat{display:inline-flex;vertical-align:middle;margin:2px 4px;position:relative;padding:2px 7px}
+.mat::before,.mat::after{content:"";position:absolute;top:0;bottom:0;width:6px;border:1.5px solid var(--ink)}
+.mat::before{left:0;border-right:none;border-radius:4px 0 0 4px}
+.mat::after{right:0;border-left:none;border-radius:0 4px 4px 0}
+.mat table{border-collapse:collapse}
+.mat td{padding:1px 6px;text-align:right;font-family:var(--mono);font-size:13px}
+canvas.plot{width:100%;max-width:440px;aspect-ratio:1/1;border:1px solid var(--line);border-radius:10px;display:block;margin:10px 0;background:var(--surface-2)}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);gap:16px;align-items:start}
+@media (max-width:860px){.split{grid-template-columns:minmax(0,1fr)}}
+.pix{display:inline-grid;gap:1px;background:var(--line);border:1px solid var(--line);margin:2px 8px 2px 0;vertical-align:middle}
+.pix i{display:block;width:11px;height:11px;background:var(--surface)}
+.pix i.on{background:var(--ink)}
+.pix i.unk{background:repeating-linear-gradient(45deg,var(--muted) 0 2px,var(--surface) 2px 4px)}
+details.more{margin:8px 0}
+details.more summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:14px}
+footer{padding:30px 0 50px;color:var(--muted);font-size:13px}
+@media (max-width:640px){
+  header.top h1{font-size:21px}
+  .fld.w2{grid-column:1/-1}
+  .calc{padding:14px}
+  .preset{min-width:0;width:100%}
+}
+@media print{nav.bar,.actions,.preset{display:none}.calc,.note{break-inside:avoid;box-shadow:none}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <h1>MATH AI – príprava na písomku (cvičenia a prednášky 4–8)</h1>
+    <p>Optimalizácia v 1D a 2D (gradient, steepest descent, Newton, Nelder–Mead, Powell) a neurónové siete (McCulloch–Pitts, Hebb, perceptrón, ADALINE, MADALINE, learning rate, asociatívna pamäť). Každá kalkulačka ukazuje výpočet krok po kroku ako na papieri. Stačí doplniť zadanie a kliknúť na „Vypočítaj“.</p>
+    <div class="exam">
+      <span class="pill">📅 <b>13. 11. 2026</b> piatok 13:00–15:00 (podľa prednášky 6)</span>
+      <span class="pill">✍️ ručne <b>2 iterácie</b> f(x,y) z bodu (x₀,y₀): NM, Newton, gradient, Powell</span>
+      <span class="pill">💻 naprogramovať a uviesť <b>výsledok konvergencie</b></span>
+    </div>
+  </div>
+</header>
+
+<nav class="bar"><div class="wrap">
+  <a href="#poznamky">Poznámky</a>
+  <a href="#priklady">Všetky príklady</a>
+  <span class="sep"></span>
+  <a href="#opt1d">Opt. 1D</a>
+  <a href="#calc-g2">Gradient 2D</a>
+  <a href="#calc-sd">Steepest descent</a>
+  <a href="#calc-n2">Newton 2D</a>
+  <a href="#calc-nm">Nelder–Mead</a>
+  <a href="#calc-pw">Powell</a>
+  <a href="#calc-cmp">Porovnanie</a>
+  <span class="sep"></span>
+  <a href="#calc-mp">McCulloch–Pitts</a>
+  <a href="#calc-hebb">Hebb</a>
+  <a href="#calc-perc">Perceptrón</a>
+  <a href="#calc-ada">ADALINE</a>
+  <a href="#calc-mad">MADALINE</a>
+  <a href="#calc-lr">Learning rate</a>
+  <a href="#calc-am">Asoc. pamäť</a>
+  <div class="tools">
+    <label style="font-size:12.5px;color:var(--muted)">desatinné</label>
+    <select id="dec"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>8</option></select>
+    <button id="themeBtn" title="Prepnúť tému">◐</button>
+  </div>
+</div></nav>
+
+<!-- ===================== POZNÁMKY ===================== -->
+<section class="sec" id="poznamky"><div class="wrap">
+  <h2>Krátke poznámky</h2>
+  <p class="lead">To najdôležitejšie z prednášok a cvičení 4–8 na jednom mieste. <span class="k">Zvýraznené</span> veci sa oplatí vedieť naspamäť.</p>
+
+  <div class="grp-title">Optimalizácia</div>
+  <div class="notes">
+    <div class="note"><h3>Základy <span class="src">P4</span></h3>
+      <ul>
+        <li>Hľadáme lokálne <b>minimum</b>. Maximum riešime cez <span class="k">max f = −min(−f)</span>, teda minimalizujeme −f.</li>
+        <li><b>Unimodálna</b> funkcia na [a,b]: existuje jediný bod p, pričom na [a,p] f klesá a na [p,b] rastie.</li>
+        <li>Delenie metód: <b>bez derivácií</b> (Golden, Fibonacci, Nelder–Mead, Powell), <b>s 1. deriváciou</b> (gradient, steepest descent), <b>s 2. deriváciou</b> (Newton).</li>
+        <li>Predpoklad: štartovací bod je blízko extrému a f je spojitá a diferencovateľná.</li>
+        <li>Stop kritériá: <span class="m">|x<sub>k+1</sub> − x<sub>k</sub>| &lt; ε</span>, <span class="m">|f'(x<sub>k</sub>)| &lt; ε</span>, v 2D <span class="m">‖Δx‖ &lt; ε</span>.</li>
+      </ul>
+    </div>
+    <div class="note"><h3>Gradientná metóda <span class="src">CV4, CV5</span></h3>
+      <span class="f">1D:  x<sub>k+1</sub> = x<sub>k</sub> − α·f'(x<sub>k</sub>)</span>
+      <span class="f">2D:  X<sub>k+1</sub> = X<sub>k</sub> − α·∇f(X<sub>k</sub>),  ∇f = (f<sub>x</sub>, f<sub>y</sub>)</span>
+      <ul>
+        <li>−∇f je smer <b>najstrmšieho klesania</b>.</li>
+        <li>Pri malom α je metóda pomalá, pri veľkom kmitá alebo diverguje.</li>
+        <li>Pri kvadratickej f konverguje <span class="k">iff α &lt; 2/λ<sub>max</sub>(H)</span>. Pre x²+25y² je H = diag(2, 50), takže α &lt; 0.04.</li>
+        <li>Konvergencia je <b>lineárna</b>, na log-grafe vyzerá ako priamka.</li>
+      </ul>
+    </div>
+    <div class="note"><h3>Steepest descent s line search <span class="src">P5</span></h3>
+      <span class="f">S<sub>k</sub> = −∇f(P<sub>k</sub>) / ‖∇f(P<sub>k</sub>)‖</span>
+      <span class="f">φ(γ) = f(P<sub>k</sub> + γ·S<sub>k</sub>) → φ'(γ) = 0 → γ*</span>
+      <span class="f">P<sub>k+1</sub> = P<sub>k</sub> + γ*·S<sub>k</sub></span>
+      <ul>
+        <li>Dĺžka kroku nie je pevná. Volíme γ, ktoré minimalizuje f na priamke, takže riešime 1D úlohu.</li>
+        <li>Susedné smery sú na seba kolmé (cik-cak).</li>
+        <li>V 1D sa minimum na priamke dá nájsť <b>kvadratickou aproximáciou</b>: parabola cez p₀, p₀+h, p₀+2h má vrchol v <span class="m">x = −b/2a</span>.</li>
+      </ul>
+    </div>
+    <div class="note"><h3>Newtonova metóda <span class="src">CV4</span></h3>
+      <span class="f">1D:  x<sub>k+1</sub> = x<sub>k</sub> − f'(x<sub>k</sub>) / f''(x<sub>k</sub>)</span>
+      <span class="f">2D:  X<sub>k+1</sub> = X<sub>k</sub> − H<sup>−1</sup>(X<sub>k</sub>)·∇f(X<sub>k</sub>)</span>
+      <span class="f">H = [f<sub>xx</sub> f<sub>xy</sub>; f<sub>xy</sub> f<sub>yy</sub>],  H<sup>−1</sup> = 1/det · [f<sub>yy</sub> −f<sub>xy</sub>; −f<sub>xy</sub> f<sub>xx</sub>]</span>
+      <ul>
+        <li>Ekvivalentne: vyrieš <span class="m">H·Δ = −∇f</span> a polož X<sub>k+1</sub> = X<sub>k</sub> + Δ.</li>
+        <li>Konverguje <b>kvadraticky</b> a je rýchla, ale potrebuje H.</li>
+        <li><span class="k">Na kvadratickej funkcii stačí 1 krok</span> (sféra, Booth, Matyas, x²+25y²).</li>
+        <li>Zlyhá, keď je H singulárna alebo nie je kladne definitná (vtedy ide k sedlu alebo maximu), a tiež pri štarte ďaleko od minima.</li>
+      </ul>
+    </div>
+    <div class="note"><h3>Nelder–Mead (simplex) <span class="src">P4, CV4</span></h3>
+      <ul>
+        <li>Bez derivácií. V 2D je simplex trojuholník s 3 vrcholmi, v nD má n+1 vrcholov.</li>
+        <li>Zoraď vrcholy: <b>B</b> best ≤ <b>G</b> good ≤ <b>W</b> worst (na cvičení A ≤ B ≤ C).</li>
+      </ul>
+      <span class="f">M = (B+G)/2     R = 2M − W</span>
+      <span class="f">E = 2R − M = M + 2(R − M)</span>
+      <span class="f">C₁ = (W+M)/2   C₂ = (M+R)/2   S = (B+W)/2</span>
+      <ul>
+        <li><b>Prednáška (Mathews):</b> ak f(R) &lt; f(G): keď f(B) &lt; f(R), W←R, inak skús E (ak f(E) &lt; f(B), W←E, inak W←R). Ak f(R) ≥ f(G): kontrakcia, vezmi lepšie z C₁, C₂. Keď nepomôže, nasleduje zmrštenie k B (W←S, G←M).</li>
+        <li><b>Cvičenie:</b> ak f(A) ≤ f(R) &lt; f(B), C←R. Ak f(R) &lt; f(A), expanzia, E sa prijme len ak f(E) &lt; f(R). Inak kontrakcia K = (M+C)/2 a keď ani tá nepomôže, zmrštenie k A.</li>
+        <li>Stop: <span class="m">d = max ‖V<sub>i</sub> − B‖ &lt; ε</span> (ε = 10⁻³).</li>
+        <li>Výhody: funguje vždy a nepotrebuje derivácie. Nevýhody: je pomalá a záleží na štarte.</li>
+      </ul>
+    </div>
+    <div class="note"><h3>Powellova metóda <span class="src">CV5</span></h3>
+      <ul>
+        <li>Bez derivácií, robí len <b>hľadanie po priamkach</b>.</li>
+        <li>Začni so smermi u₁ = (1,0), u₂ = (0,1).</li>
+        <li>Iterácia: z P₀ min po u₁ → P₁, po u₂ → P₂. Nový smer <span class="m">d = P₂ − P₀</span>, min po d → P₃.</li>
+        <li>Posun smerov: <span class="m">u₁ ← u₂, u₂ ← d</span>.</li>
+        <li>Na kvadratickej funkcii nájde minimum po n cykloch (konjugované smery).</li>
+      </ul>
+    </div>
+    <div class="note"><h3>Porovnanie metód <span class="src">CV5</span></h3>
+      <ul>
+        <li><b>Newton:</b> najmenej iterácií, ale každá je drahá (H a riešenie sústavy).</li>
+        <li><b>Gradient:</b> lacné iterácie, ale veľa ich treba. Je citlivý na α a na pretiahnuté údolia (Rosenbrock). V ML je rozšírený, lebo sa dá škálovať na milióny parametrov.</li>
+        <li><b>NM a Powell</b> sa hodia, keď derivácie nepoznáme alebo f nie je hladká (|x|+|y|).</li>
+        <li>Lineárna konvergencia znamená +konštantný počet iterácií na každú ďalšiu platnú číslicu. Kvadratická znamená, že sa počet platných číslic v každom kroku zdvojnásobí.</li>
+        <li>Pri Himmelblau rôzne štarty aj rôzne metódy vedú do rôznych miním.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grp-title">Neurónové siete</div>
+  <div class="notes">
+    <div class="note"><h3>McCulloch–Pitts (1943) <span class="src">P6, CV6</span></h3>
+      <span class="f">z = Σ w<sub>i</sub>x<sub>i</sub>     y = 1 ak z ≥ θ, inak 0</span>
+      <ul>
+        <li>Binárna aktivácia, váhy a prah θ sa nastavia <b>ručne</b>, neurón sa neučí. Sieťou sa prechádza len raz.</li>
+        <li>Váha w &gt; 0 je excitačná, w &lt; 0 inhibičná.</li>
+        <li><span class="k">AND: w=(1,1), θ=2</span> · <span class="k">OR: w=(1,1), θ=1</span> alebo (2,2), θ=2 · AND NOT (x₁∧¬x₂): w=(2,−1), θ=2.</li>
+        <li>NOT pri θ=2 bez biasu nejde. XOR jedným neurónom nejde, treba 2 vrstvy.</li>
+      </ul>
+    </div>
+    <div class="note"><h3>Bias, prah, lineárna separabilita <span class="src">P6</span></h3>
+      <span class="f">y_in = b + Σ x<sub>i</sub>w<sub>i</sub>   (bias = váha vstupu x₀ = 1,  b = −θ)</span>
+      <span class="f">hranica: w₁x₁ + w₂x₂ + b = 0  →  x₂ = −(w₁/w₂)·x₁ − b/w₂</span>
+      <ul>
+        <li>Binárna aktivácia: 1 ak y_in ≥ 0, inak 0. Bipolárna: 1 ak y_in ≥ 0, inak −1.</li>
+        <li>Jeden neurón vie oddeliť triedy len <b>priamkou</b>. AND, OR a NAND sú separabilné, <span class="k">XOR nie je</span>.</li>
+        <li>XOR = AND(OR(x₁,x₂), NAND(x₁,x₂)) potrebuje skrytú vrstvu (MLP).</li>
+      </ul>
+    </div>
+    <div class="note"><h3>Hebbov neurón <span class="src">P6, P8</span></h3>
+      <span class="f">w<sub>i</sub>(new) = w<sub>i</sub>(old) + x<sub>i</sub>·t     b(new) = b(old) + t</span>
+      <ul>
+        <li>Váhy štartujú na 0 a robí sa len <b>1 epocha</b>.</li>
+        <li>Pri binárnom cieli (t = 0) sa nič nezmení, neurón sa nenaučí: „binárna aktivácia umrela“. Treba bipolárne dáta.</li>
+        <li><span class="k">AND bipolárne → w = (2, 2), b = −2</span>, hranica x₂ = 1 − x₁.</li>
+      </ul>
+    </div>
+    <div class="note"><h3>Perceptrón (Rosenblatt 1962) <span class="src">P7, CV6</span></h3>
+      <ul>
+        <li>Váhy sa menia <b>len pri chybe</b> (ŷ ≠ t). Opakuje sa po epochách, kým sa v celej epoche nič nezmení.</li>
+        <li><b>Cvičenie:</b> ŷ = 1 ak z ≥ 0, inak −1; <span class="m">w ← w + α(t − ŷ)x, b ← b + α(t − ŷ)</span>.</li>
+        <li><b>Prednáška (Fausett):</b> y = 1 ak y_in &gt; θ, 0 ak −θ ≤ y_in ≤ θ, −1 ak y_in &lt; −θ; pri y ≠ t <span class="m">w ← w + α·t·x, b ← b + α·t</span>.</li>
+        <li>Konverguje vždy, ak sú dáta lineárne separabilné. <span class="k">Pri XOR sa váhy po epoche vrátia na začiatok, takže sa nenaučí.</span></li>
+      </ul>
+    </div>
+    <div class="note"><h3>ADALINE (Widrow–Hoff 1960) <span class="src">P7, CV7</span></h3>
+      <span class="f">e = t − z   (z = y_in, hodnota PRED aktiváciou)</span>
+      <span class="f">w<sub>i</sub> ← w<sub>i</sub> + α·(t − z)·x<sub>i</sub>     b ← b + α·(t − z)</span>
+      <ul>
+        <li>Pravidlo má viac mien: delta pravidlo, LMS, metóda najmenších štvorcov, Widrow–Hoff.</li>
+        <li>Váhy sa upravia <b>vždy</b>, aj keď je klasifikácia správna.</li>
+        <li>Minimalizuje <span class="m">E = Σ(t − z)²</span>, teda hľadá priamku, ktorá dáta popíše najlepšie.</li>
+        <li>Stop: najväčšia zmena váh &lt; tolerancia, alebo E &lt; tolerancia.</li>
+        <li>V prednáške je chyba E<sub>p</sub> = (x·w<sub>new</sub> + b<sub>new</sub> − t)² po úprave a v epoche sa sčíta.</li>
+      </ul>
+    </div>
+    <div class="note"><h3>MADALINE – MRI <span class="src">CV7</span></h3>
+      <ul>
+        <li>Má viac ADALINE v skrytej vrstve a pevnú výstupnú logiku. OR: v₁ = v₂ = 1, b = 0.5.</li>
+        <li>Postup: spočítaj h<sub>j</sub> = f(z<sub>j</sub>) a ŷ = f(v₁h₁ + v₂h₂ + b). Ak ŷ = t, nič nemeň.</li>
+        <li>Ak <b>t = 1</b>: uprav <b>jeden</b> neurón, ten so z najbližšie k 0. <span class="m">w ← w + α(d − z)x</span>, d = +1.</li>
+        <li>Ak <b>t = −1</b>: uprav <b>všetky</b> neuróny so z ≥ 0. <span class="m">w ← w + α(−d − z)x</span>.</li>
+        <li>Na cvičení sa počítalo s lokálnym cieľom d = 0.1 (v kalkulačke sa dá zmeniť).</li>
+        <li>MRII skúša preklápať h<sub>i</sub> v poradí podľa |z<sub>i</sub>|. MRIII používa hladké aktivácie (sigmoid, tanh).</li>
+      </ul>
+    </div>
+    <div class="note"><h3>Voľba learning rate α <span class="src">P8, CV8</span></h3>
+      <span class="f">R = (1/P)·Σ x(p)ᵀ·x(p) = (1/P)·XᵀX    (outer product)</span>
+      <span class="f">det(R − λI) = 0  →  λ₁, …, λ<sub>n</sub></span>
+      <ul>
+        <li><b>Prednáška (Hecht-Nielsen):</b> <span class="k">α &lt; ½·λ<sub>max</sub></span>. <b>Batch GD:</b> <span class="k">α &lt; 2/λ<sub>max</sub></span>.</li>
+        <li>Best practice: <span class="m">0.1 ≤ P·α ≤ 1</span>.</li>
+        <li>2×2: λ² − (tr R)λ + det R = 0. Pri 3×3 Sarrusovo pravidlo, Vieta: λ₁+λ₂ = tr, λ₁λ₂ = det.</li>
+        <li>Binárny AND má R = [½ ¼; ¼ ½], λ = ¾ a ¼, takže α &lt; 0.375.</li>
+        <li>Pri príliš veľkom α proces nekonverguje (E začne rásť). Pri príliš malom je extrémne pomalý.</li>
+      </ul>
+    </div>
+    <div class="note"><h3>Asociatívna pamäť <span class="src">P8, CV8</span></h3>
+      <span class="f">W = Σ<sub>p</sub> s(p)ᵀ·t(p) = SᵀT      (n×m)</span>
+      <span class="f">vybavenie:  y = f(x·W)</span>
+      <ul>
+        <li>Je to Hebbovo pravidlo v maticovom tvare a nejde pri ňom o učenie v epochách: váhy sa vypočítajú jedným prechodom.</li>
+        <li>Keď sú vstupy <b>ortogonálne</b> (s(k)·s(p) = 0), vybavenie je presné. Inak vzniká „cross-talk“.</li>
+        <li>Funguje aj pri zašumenom alebo neúplnom vstupe (0 = neznámy pixel). Pri remíze (0) sa sieť nevie rozhodnúť.</li>
+        <li>Outer product: (m×1)·(1×n) = m×n matica. Inner (skalárny) product: (1×n)·(n×1) = číslo.</li>
+      </ul>
+    </div>
+  </div>
+</div></section>
+
+<!-- ===================== PRÍKLADY ===================== -->
+<section class="sec" id="priklady"><div class="wrap">
+  <h2>Všetky príklady z cvičení a prednášok 4–8</h2>
+  <p class="lead">Klikni na „Otvoriť“. Zadanie sa vloží do kalkulačky a hneď sa prepočíta. Stĺpec „Kontrola“ ukazuje výsledok z materiálov.</p>
+  <div id="exList"></div>
+</div></section>
+
+<!-- ===================== OPTIMALIZÁCIA ===================== -->
+<section class="sec" id="opt1d"><div class="wrap">
+  <h2>Optimalizácia v 1D</h2>
+  <p class="lead">Funkciu zapisuj ako <code>x^4 - 2x^2</code>, <code>exp(x)</code>, <code>sin(x)</code>, <code>sqrt(x)</code>, <code>log(x)</code> (= ln). Násobenie môže byť aj implicitné (<code>2x</code>).</p>
+  <div class="calc" id="calc-g1"></div>
+  <div class="calc" id="calc-n1"></div>
+  <div class="calc" id="calc-q1"></div>
+</div></section>
+
+<section class="sec" id="opt2d"><div class="wrap">
+  <h2>Optimalizácia v 2D</h2>
+  <p class="lead">Funkcia premenných <code>x</code>, <code>y</code>. Bod zapisuj ako <code>2; 2</code> alebo <code>2, 2</code>. Podrobne sa vypíše prvých niekoľko iterácií, ďalšie sú v tabuľke.</p>
+  <div class="calc" id="calc-g2"></div>
+  <div class="calc" id="calc-sd"></div>
+  <div class="calc" id="calc-n2"></div>
+  <div class="calc" id="calc-nm"></div>
+  <div class="calc" id="calc-pw"></div>
+  <div class="calc" id="calc-cmp"></div>
+</div></section>
+
+<!-- ===================== NEURÓNOVÉ SIETE ===================== -->
+<section class="sec" id="nn"><div class="wrap">
+  <h2>Neurónové siete</h2>
+  <p class="lead">Trénovacie dáta píš po riadkoch: <code>x1 x2 | t</code> (vstupy, zvislá čiara, cieľ). Bias sa pridáva automaticky, preto ho do vstupov nepíš.</p>
+  <div class="calc" id="calc-mp"></div>
+  <div class="calc" id="calc-hebb"></div>
+  <div class="calc" id="calc-perc"></div>
+  <div class="calc" id="calc-ada"></div>
+  <div class="calc" id="calc-mad"></div>
+  <div class="calc" id="calc-lr"></div>
+  <div class="calc" id="calc-am"></div>
+</div></section>
+
+<footer><div class="wrap">Vytvorené z materiálov MATH AI: prednášky 04–08, cvičenia 4–8 (optimalizačné metódy, McCulloch–Pitts, perceptrón, ADALINE/MADALINE, learning rate, siete). Symbolické derivácie počíta math.js. Bez internetu sa derivácie počítajú numericky.</div></footer>
+
+<script>
+/* ============================================================
+   Formátovanie
+   ============================================================ */
+const S = { dec: 4 };
+function fm(v, d = S.dec) {
+  if (typeof v !== 'number') return String(v);
+  if (Number.isNaN(v)) return 'NaN';
+  if (!Number.isFinite(v)) return v > 0 ? '∞' : '−∞';
+  const a = Math.abs(v);
+  if (a < 1e-12) return '0';
+  if (a >= 1e7 || a < Math.pow(10, -d)) return v.toExponential(2).replace(/-/g, "−");
+  let s = v.toFixed(d);
+  if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  if (s === '-0') s = '0';
+  return s.replace('-', '−');
+}
+const fp = v => (v < 0 && fm(v) !== '0') ? `(${fm(v)})` : fm(v);           // číslo v zátvorke, ak je záporné
+const P = a => `(${a.map(v => fm(v)).join(', ')})`;
+const sub = s => `<sub>${s}</sub>`;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const L = s => `<div class="ln">${s}</div>`;
+const C = s => `<div class="ln c">${s}</div>`;
+const tag = (s, k = 'info') => `<span class="tag ${k}">${s}</span>`;
+const box = (title, body, right = '') => `<div class="it"><div class="it-h"><span>${title}</span><span>${right}</span></div><div class="it-b">${body}</div></div>`;
+const res = s => `<div class="res">${s}</div>`;
+const warn = s => `<div class="warnbox">${s}</div>`;
+function mat(M) {
+  return `<span class="mat"><table>${M.map(r => `<tr>${r.map(v => `<td>${typeof v === 'number' ? fm(v) : v}</td>`).join('')}</tr>`).join('')}</table></span>`;
+}
+const col = v => mat(v.map(x => [x]));
+function table(head, rows, opts = {}) {
+  const left = opts.left || [];
+  return `<div class="tbl-wrap"><table class="t"><thead><tr>${head.map((h, i) => `<th class="${left.includes(i) ? 'l' : ''}">${h}</th>`).join('')}</tr></thead><tbody>${
+    rows.map(r => {
+      const cls = r._cls || '';
+      return `<tr class="${cls}">${r.map((c, i) => `<td class="${left.includes(i) ? 'l' : ''}">${typeof c === 'number' ? fm(c) : c}</td>`).join('')}</tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+function frac(v) {
+  for (let d = 1; d <= 64; d++) {
+    const n = Math.round(v * d);
+    if (Math.abs(v * d - n) < 1e-9 * Math.max(1, d)) return d === 1 ? String(n) : `${n}/${d}`.replace('-', '−');
+  }
+  return null;
+}
+const ff = v => { const q = frac(v); return q && q.includes('/') ? `${fm(v)} <span style="color:var(--muted)">(= ${q})</span>` : fm(v); };
+
+/* ============================================================
+   Čísla, body, výrazy
+   ============================================================ */
+function toReal(v) {
+  if (typeof v === 'number') return v;
+  if (v && typeof v === 'object' && 're' in v) return Math.abs(v.im) < 1e-14 ? v.re : NaN;
+  if (v && typeof v.toNumber === 'function') return v.toNumber();
+  return Number(v);
+}
+function num(s, name = '') {
+  if (typeof s === 'number') return s;
+  s = String(s ?? '').trim().replace(/,/g, '.');
+  if (s === '') throw Error(`Chýba hodnota ${name}`);
+  let v;
+  try { v = window.math ? math.evaluate(s) : Function(`"use strict";return (${jsify(s)})`)(); }
+  catch (e) { throw Error(`Neplatné číslo „${s}“ ${name}`); }
+  v = toReal(v);
+  if (!Number.isFinite(v)) throw Error(`Neplatné číslo „${s}“ ${name}`);
+  return v;
+}
+function parsePt(s, name = 'bod') {
+  s = String(s).trim().replace(/^[\[(]|[\])]$/g, '');
+  let parts = s.includes(';') ? s.split(';') : s.split(/[,\s]+/);
+  parts = parts.map(p => p.trim()).filter(p => p !== '');
+  if (parts.length !== 2) throw Error(`${name}: zadaj dve súradnice, napr. 2; 2`);
+  return parts.map(p => num(p, name));
+}
+function parseVec(s) {
+  return String(s).trim().split(/[\s;]+/).filter(Boolean).map(p => num(p));
+}
+// riadky „x1 x2 | t1 t2“
+function parseRows(text, needT = true) {
+  const rows = [];
+  String(text).split('\n').forEach((line, i) => {
+    line = line.replace(/#.*/, '').trim();
+    if (!line) return;
+    const [a, b] = line.split('|');
+    const x = String(a).trim().split(/[\s;,]+/).filter(Boolean).map(v => num(v));
+    const t = b === undefined ? [] : b.trim().split(/[\s;,]+/).filter(Boolean).map(v => num(v));
+    if (needT && !t.length) throw Error(`Riadok ${i + 1}: chýba cieľ za znakom |`);
+    rows.push({ x, t });
+  });
+  if (!rows.length) throw Error('Žiadne dáta');
+  const n = rows[0].x.length;
+  rows.forEach((r, i) => { if (r.x.length !== n) throw Error(`Riadok ${i + 1}: iný počet vstupov`); });
+  return rows;
+}
+function jsify(s) {
+  return s.replace(/\^/g, '**')
+    .replace(/(\d)\s*([a-zA-Z(])/g, '$1*$2')
+    .replace(/\)\s*([a-zA-Z0-9(])/g, ')*$1')
+    .replace(/\b(sin|cos|tan|exp|sqrt|abs|atan|asin|acos|sinh|cosh|tanh)\b/g, 'Math.$1')
+    .replace(/\bln\(/g, 'Math.log(').replace(/\blog\(/g, 'Math.log(')
+    .replace(/\bpi\b/g, 'Math.PI').replace(/\be\b/g, 'Math.E');
+}
+const prettyExpr = s => esc(s).replace(/ \* /g, '·').replace(/\*/g, '·').replace(/ \^ /g, '^');
+
+// skompiluje f a vráti hodnotu, gradient, Hessian (+ symbolické tvary, ak je k dispozícii math.js)
+function compileFn(src, vars) {
+  src = String(src || '').trim();
+  if (!src) throw Error('Zadaj funkciu');
+  if (window.math) {
+    let node;
+    try { node = math.parse(src.replace(/\bln\(/g, 'log(')); } catch (e) { throw Error('Neplatná funkcia: ' + e.message); }
+    const scope = a => { const o = {}; vars.forEach((v, i) => o[v] = a[i]); return o; };
+    const ev = c => (...a) => { try { return toReal(c.evaluate(scope(a))); } catch (e) { return NaN; } };
+    const f = ev(node.compile());
+    let d1, d2;
+    try {
+      d1 = vars.map(v => math.derivative(node, v));
+      d2 = d1.map(n => vars.map(v => math.derivative(n, v)));
+    } catch (e) { d1 = null; }
+    if (d1) {
+      const g = d1.map(n => ev(n.compile()));
+      const h = d2.map(r => r.map(n => ev(n.compile())));
+      // test, či vyhodnotenie funguje
+      return {
+        f, vars, symbolic: true,
+        grad: (...a) => g.map(fn => fn(...a)),
+        hess: (...a) => h.map(r => r.map(fn => fn(...a))),
+        sym: { f: node.toString(), d1: d1.map(n => n.toString()), d2: d2.map(r => r.map(n => n.toString())) }
+      };
+    }
+    return numericFn(f, vars);
+  }
+  let f;
+  try { f = Function(...vars, `"use strict";return (${jsify(src)});`); f(...vars.map(() => 0.37)); }
+  catch (e) { throw Error('Neplatná funkcia (offline režim): ' + e.message); }
+  return numericFn(f, vars);
+}
+function numericFn(f, vars) {
+  const grad = (...a) => a.map((v, i) => {
+    const h = 1e-6 * Math.max(1, Math.abs(v)); const p = a.slice(), m = a.slice(); p[i] += h; m[i] -= h;
+    return (f(...p) - f(...m)) / (2 * h);
+  });
+  const hess = (...a) => a.map((vi, i) => a.map((vj, j) => {
+    const hi = 1e-4 * Math.max(1, Math.abs(vi)), hj = 1e-4 * Math.max(1, Math.abs(vj));
+    const at = (di, dj) => { const q = a.slice(); q[i] += di; q[j] += dj; return f(...q); };
+    return (at(hi, hj) - at(hi, -hj) - at(-hi, hj) + at(-hi, -hj)) / (4 * hi * hj);
+  }));
+  return { f, vars, symbolic: false, grad, hess, sym: null };
+}
+function symHTML(F) {
+  if (!F.sym) return `<span class="tag warn">offline: derivácie sa počítajú numericky</span>`;
+  const s = F.sym;
+  if (F.vars.length === 1) return `f'(x) = <span class="m">${prettyExpr(s.d1[0])}</span> &nbsp;·&nbsp; f''(x) = <span class="m">${prettyExpr(s.d2[0][0])}</span>`;
+  return `f<sub>x</sub> = <span class="m">${prettyExpr(s.d1[0])}</span> &nbsp;·&nbsp; f<sub>y</sub> = <span class="m">${prettyExpr(s.d1[1])}</span><br>` +
+    `f<sub>xx</sub> = <span class="m">${prettyExpr(s.d2[0][0])}</span> &nbsp;·&nbsp; f<sub>xy</sub> = <span class="m">${prettyExpr(s.d2[0][1])}</span> &nbsp;·&nbsp; f<sub>yy</sub> = <span class="m">${prettyExpr(s.d2[1][1])}</span>`;
+}
+
+/* ============================================================
+   Numerické pomôcky
+   ============================================================ */
+const norm = v => Math.hypot(...v);
+const add = (a, b) => a.map((v, i) => v + b[i]);
+const subv = (a, b) => a.map((v, i) => v - b[i]);
+const mul = (k, a) => a.map(v => k * v);
+const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
+const dist = (a, b) => norm(subv(a, b));
+const lt = (a, b) => a < b - 1e-12;   // „ostro menší“ s toleranciou na zaokrúhlenie
+
+function golden(g, lo, hi) {
+  const r = (Math.sqrt(5) - 1) / 2;
+  let x1 = hi - r * (hi - lo), x2 = lo + r * (hi - lo), g1 = g(x1), g2 = g(x2);
+  for (let i = 0; i < 300 && hi - lo > 1e-13 * (1 + Math.abs(lo) + Math.abs(hi)); i++) {
+    if (g1 < g2 || Number.isNaN(g2)) { hi = x2; x2 = x1; g2 = g1; x1 = hi - r * (hi - lo); g1 = g(x1); }
+    else { lo = x1; x1 = x2; g1 = g2; x2 = lo + r * (hi - lo); g2 = g(x2); }
+  }
+  return (lo + hi) / 2;
+}
+// min g(t): nájde prvé lokálne minimum smerom od t = 0 (positive = len t > 0)
+function lineMin(g, positive) {
+  const g0 = g(0), h = 1e-3;
+  let dir = 1, gb = g(h);
+  if (!positive) { const gm = g(-h); if (gm < gb) { dir = -1; gb = gm; } }
+  if (!(gb < g0)) return positive ? golden(g, 0, h) : golden(g, -h, h);
+  let a = 0, b = dir * h, step = h, c = b, gc;
+  for (let i = 0; i < 200; i++) {
+    step *= 2; c = b + dir * step; gc = g(c);
+    if (!(gc < gb)) break;
+    a = b; b = c; gb = gc;
+    if (Math.abs(c) > 1e9) break;
+  }
+  return golden(g, Math.min(a, c), Math.max(a, c));
+}
+// vlastné čísla symetrickej matice (Jacobi)
+function eigSym(A) {
+  const n = A.length; const a = A.map(r => r.slice());
+  for (let sweep = 0; sweep < 100; sweep++) {
+    let off = 0;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) off += a[i][j] ** 2;
+    if (off < 1e-22) break;
+    for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) {
+      if (Math.abs(a[p][q]) < 1e-15) continue;
+      const th = (a[q][q] - a[p][p]) / (2 * a[p][q]);
+      const t = Math.sign(th || 1) / (Math.abs(th) + Math.sqrt(th * th + 1));
+      const c = 1 / Math.sqrt(t * t + 1), s = t * c;
+      for (let k = 0; k < n; k++) { const akp = a[k][p], akq = a[k][q]; a[k][p] = c * akp - s * akq; a[k][q] = s * akp + c * akq; }
+      for (let k = 0; k < n; k++) { const apk = a[p][k], aqk = a[q][k]; a[p][k] = c * apk - s * aqk; a[q][k] = s * apk + c * aqk; }
+    }
+  }
+  return a.map((r, i) => r[i]).sort((x, y) => y - x);
+}
+
+/* ============================================================
+   Graf: vrstevnice + cesta
+   ============================================================ */
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function plot2D(id, F, pts, simplices) {
+  const cv = document.getElementById(id); if (!cv) return;
+  const all = pts.concat(...(simplices || []));
+  let xs = all.map(p => p[0]).filter(Number.isFinite), ys = all.map(p => p[1]).filter(Number.isFinite);
+  if (!xs.length) return;
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  let w = Math.max(x1 - x0, y1 - y0, 1e-3); const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  w = w * 1.35 + 0.5; x0 = cx - w / 2; x1 = cx + w / 2; y0 = cy - w / 2; y1 = cy + w / 2;
+  const dpr = window.devicePixelRatio || 1, W = 440;
+  cv.width = W * dpr; cv.height = W * dpr; const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+  const N = 110, vals = [];
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) vals.push(F.f(x0 + (j + .5) / N * w, y1 - (i + .5) / N * w));
+  const sorted = vals.filter(Number.isFinite).sort((a, b) => a - b);
+  const q = t => sorted[Math.min(sorted.length - 1, Math.floor(t * sorted.length))];
+  const levels = Array.from({ length: 14 }, (_, k) => q((k + 1) / 15));
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.theme !== 'light' || document.documentElement.dataset.theme === 'dark';
+  const cell = W / N;
+  vals.forEach((v, k) => {
+    const i = Math.floor(k / N), j = k % N;
+    let lvl = levels.findIndex(L => v <= L); if (lvl < 0) lvl = levels.length;
+    const t = lvl / levels.length;
+    ctx.fillStyle = dark ? `hsl(${228 - t * 40} ${45 - t * 15}% ${12 + t * 22}%)` : `hsl(${228 - t * 40} ${70 - t * 30}% ${72 + t * 22}%)`;
+    ctx.fillRect(j * cell, i * cell, cell + 1, cell + 1);
+  });
+  const X = x => (x - x0) / w * W, Y = y => (y1 - y) / w * W;
+  const ink = cssVar('--ink'), acc = cssVar('--bad');
+  if (simplices) {
+    simplices.forEach((s, k) => {
+      ctx.beginPath(); s.forEach((p, i) => i ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1]))); ctx.closePath();
+      ctx.strokeStyle = k === 0 ? ink : acc; ctx.globalAlpha = k === 0 ? 0.9 : Math.max(0.25, 1 - k / (simplices.length + 1)); ctx.lineWidth = 1.3; ctx.stroke(); ctx.globalAlpha = 1;
+    });
+  }
+  ctx.strokeStyle = acc; ctx.lineWidth = 2; ctx.beginPath();
+  pts.forEach((p, i) => i ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1]))); ctx.stroke();
+  pts.forEach((p, i) => { ctx.beginPath(); ctx.arc(X(p[0]), Y(p[1]), i === 0 ? 4.5 : 3, 0, 7); ctx.fillStyle = i === 0 ? ink : acc; ctx.fill(); });
+  ctx.fillStyle = ink; ctx.font = '11px Inter, sans-serif';
+  ctx.fillText(`x ∈ [${fm(x0, 2)}, ${fm(x1, 2)}],  y ∈ [${fm(y0, 2)}, ${fm(y1, 2)}]`, 8, W - 8);
+}
+
+/* ============================================================
+   Kalkulačky – definície
+   ============================================================ */
+const CALCS = {};
+const DETAIL = 6;   // koľko iterácií vypísať podrobne
+
+const fld = (id, label, def = '', o = {}) => ({ id, label, def, ...o });
+
+/* ---------- 1D gradient ---------- */
+CALCS.g1 = {
+  title: 'Gradientná metóda v 1D', sub: 'Cvičenie 4. Pevný krok α.',
+  formula: 'x<sub>k+1</sub> = x<sub>k</sub> − α·f\'(x<sub>k</sub>)',
+  fn: ['x'],
+  fields: [fld('f', 'f(x) =', 'x^4 - 2x^2', { cls: 'w2' }), fld('x0', 'x₀', '2'), fld('a', 'α (krok)', '0.05'), fld('eps', 'ε (tolerancia)', '1e-3'), fld('n', 'max. iterácií', '50')],
+  run(v) {
+    const F = compileFn(v.f, ['x']); let x = num(v.x0, 'x₀'); const a = num(v.a, 'α'), eps = num(v.eps, 'ε'), N = Math.round(num(v.n));
+    let html = '', rows = [[0, x, F.f(x), F.grad(x)[0], '']], conv = false, k;
+    for (k = 1; k <= N; k++) {
+      const d = F.grad(x)[0], xn = x - a * d, dx = Math.abs(xn - x);
+      if (k <= DETAIL) html += box(`Iterácia ${k}`,
+        L(`f'(x${sub(k - 1)}) = f'(${fm(x)}) = <b>${fm(d)}</b>`) +
+        L(`x${sub(k)} = x${sub(k - 1)} − α·f'(x${sub(k - 1)}) = ${fm(x)} − ${fm(a)}·${fp(d)} = <b>${fm(xn)}</b>`) +
+        L(`f(x${sub(k)}) = ${fm(F.f(xn))} &nbsp;&nbsp; |x${sub(k)} − x${sub(k - 1)}| = ${fm(dx)}`));
+      x = xn; rows.push([k, x, F.f(x), F.grad(x)[0], fm(dx)]);
+      if (!Number.isFinite(x) || Math.abs(x) > 1e12) { html += warn('Metóda diverguje, α je príliš veľké.'); break; }
+      if (dx < eps) { conv = true; break; }
+    }
+    return res(conv ? `Konvergencia po <b>${k}</b> iteráciách: x* ≈ <b>${fm(x)}</b>, f(x*) ≈ <b>${fm(F.f(x))}</b>` : `Po ${Math.min(k, N)} iteráciách: x ≈ <b>${fm(x)}</b> (tolerancia nedosiahnutá)`)
+      + html + `<details class="more" ${rows.length > DETAIL + 2 ? '' : 'open'}><summary>Tabuľka všetkých iterácií</summary>${table(['k', 'x<sub>k</sub>', 'f(x<sub>k</sub>)', "f'(x<sub>k</sub>)", '|Δx|'], rows)}</details>`;
+  }
+};
+
+/* ---------- 1D Newton ---------- */
+CALCS.n1 = {
+  title: 'Newtonova metóda v 1D', sub: 'Cvičenie 4. Dotyčnica k f\', jej priesečník s osou x je ďalší bod.',
+  formula: 'x<sub>k+1</sub> = x<sub>k</sub> − f\'(x<sub>k</sub>) / f\'\'(x<sub>k</sub>)',
+  fn: ['x'],
+  fields: [fld('f', 'f(x) =', 'x^4 - 2x^2', { cls: 'w2' }), fld('x0', 'x₀', '2'), fld('eps', 'ε (tolerancia)', '1e-3'), fld('n', 'max. iterácií', '50')],
+  run(v) {
+    const F = compileFn(v.f, ['x']); let x = num(v.x0, 'x₀'); const eps = num(v.eps, 'ε'), N = Math.round(num(v.n));
+    let html = '', rows = [[0, x, F.f(x), F.grad(x)[0], F.hess(x)[0][0], '']], conv = false, k;
+    for (k = 1; k <= N; k++) {
+      const d1 = F.grad(x)[0], d2 = F.hess(x)[0][0];
+      if (Math.abs(d2) < 1e-14) { html += warn('f\'\'(x) = 0, metóda zlyhala (delenie nulou).'); break; }
+      const xn = x - d1 / d2, dx = Math.abs(xn - x);
+      if (k <= DETAIL) html += box(`Iterácia ${k}`,
+        L(`f'(${fm(x)}) = ${fm(d1)} &nbsp;&nbsp; f''(${fm(x)}) = ${fm(d2)}`) +
+        L(`x${sub(k)} = ${fm(x)} − ${fp(d1)} / ${fp(d2)} = ${fm(x)} − ${fp(d1 / d2)} = <b>${fm(xn)}</b>`) +
+        L(`|x${sub(k)} − x${sub(k - 1)}| = ${fm(dx)}`) + (d2 < 0 ? C(tag('f\'\' < 0: krok smeruje k maximu, nie minimu', 'warn')) : ''));
+      x = xn; rows.push([k, x, F.f(x), F.grad(x)[0], F.hess(x)[0][0], fm(dx)]);
+      if (!Number.isFinite(x)) break;
+      if (dx < eps) { conv = true; break; }
+    }
+    const d2 = F.hess(x)[0][0];
+    return res((conv ? `Konvergencia po <b>${k}</b> iteráciách: ` : 'Výsledok: ') + `x* ≈ <b>${fm(x)}</b>, f(x*) ≈ <b>${fm(F.f(x))}</b> ` + (d2 > 0 ? tag('f\'\' > 0 → minimum', 'ok') : d2 < 0 ? tag('f\'\' < 0 → maximum', 'bad') : tag('f\'\' = 0', 'warn')))
+      + html + `<details class="more"><summary>Tabuľka všetkých iterácií</summary>${table(['k', 'x<sub>k</sub>', 'f', "f'", "f''", '|Δx|'], rows)}</details>`;
+  }
+};
+
+/* ---------- 1D kvadratická aproximácia ---------- */
+CALCS.q1 = {
+  title: 'Hľadanie minima v 1D kvadratickou aproximáciou', sub: 'Prednáška 5. Z bodu p₀ ideme v smere klesania s krokom h a parabolou cez 3 body odhadneme minimum.',
+  formula: 'p₀, p₀+h, p₀+2h → h<sub>min</sub> = h·(4f₁ − 3f₀ − f₂) / (4f₁ − 2f₀ − 2f₂),  p<sub>min</sub> = p₀ + h<sub>min</sub>',
+  fn: ['x'],
+  fields: [fld('f', 'f(x) =', 'x^4 - 2x^2', { cls: 'w2' }), fld('p0', 'p₀', '2'), fld('h', 'h (krok)', '0.1'), fld('n', 'iterácií', '4')],
+  run(v) {
+    const F = compileFn(v.f, ['x']); let p = num(v.p0, 'p₀'); let h0 = Math.abs(num(v.h, 'h')); const N = Math.round(num(v.n));
+    let html = '';
+    for (let k = 1; k <= N; k++) {
+      let lines = '';
+      const d = F.grad(p)[0];
+      let h = d > 0 ? -h0 : h0;
+      lines += L(`f'(p₀) = f'(${fm(p)}) = ${fm(d)} → ${d > 0 ? 'minimum je <b>vľavo</b> (h &lt; 0)' : 'minimum je <b>vpravo</b> (h &gt; 0)'}`);
+      let f0 = F.f(p), f1 = F.f(p + h), f2 = F.f(p + 2 * h), guard = 0;
+      // zúženie / rozšírenie, kým f₀ > f₁ < f₂
+      while (guard++ < 60) {
+        if (f1 >= f0) { lines += C(`f(p₀+h) = ${fm(f1)} ≥ f(p₀) = ${fm(f0)} → prestrelili sme, <b>kompresia</b> h ← h/2`); h /= 2; f1 = F.f(p + h); f2 = F.f(p + 2 * h); }
+        else if (f2 < f1) { lines += C(`f(p₀+2h) = ${fm(f2)} &lt; f(p₀+h) = ${fm(f1)} → minimum je ďalej, <b>expanzia</b> h ← 2h`); h *= 2; f1 = F.f(p + h); f2 = F.f(p + 2 * h); }
+        else break;
+        if (Math.abs(h) < 1e-12) break;
+      }
+      lines += L(`h = ${fm(h)}: &nbsp;f₀ = f(${fm(p)}) = ${fm(f0)}, &nbsp;f₁ = f(${fm(p + h)}) = ${fm(f1)}, &nbsp;f₂ = f(${fm(p + 2 * h)}) = ${fm(f2)}`);
+      const den = 4 * f1 - 2 * f0 - 2 * f2;
+      if (Math.abs(den) < 1e-15) { lines += warn('Body ležia na priamke, parabola sa nedá zostrojiť.'); html += box(`Iterácia ${k}`, lines); break; }
+      const hm = h * (4 * f1 - 3 * f0 - f2) / den, pn = p + hm;
+      lines += L(`h<sub>min</sub> = ${fm(h)}·(4·${fp(f1)} − 3·${fp(f0)} − ${fp(f2)}) / (4·${fp(f1)} − 2·${fp(f0)} − 2·${fp(f2)}) = <b>${fm(hm)}</b>`);
+      lines += L(`p<sub>min</sub> = ${fm(p)} + ${fp(hm)} = <b>${fm(pn)}</b>, &nbsp;f(p<sub>min</sub>) = ${fm(F.f(pn))}`);
+      html += box(`Iterácia ${k}`, lines);
+      if (Math.abs(pn - p) < 1e-12) { p = pn; break; }
+      p = pn; h0 = Math.max(Math.abs(h) / 2, 1e-9);
+    }
+    return res(`Odhad minima: x ≈ <b>${fm(p)}</b>, f ≈ <b>${fm(F.f(p))}</b>`) + html;
+  }
+};
+
+/* ---------- 2D gradient s pevným krokom ---------- */
+CALCS.g2 = {
+  title: 'Gradientná metóda v 2D (pevný krok α)', sub: 'Cvičenie 4 a 5. Krok proti gradientu s konštantným α.',
+  formula: 'X<sub>k+1</sub> = X<sub>k</sub> − α·∇f(X<sub>k</sub>),   ∇f = (f<sub>x</sub>, f<sub>y</sub>)',
+  fn: ['x', 'y'], plot: true,
+  fields: [fld('f', 'f(x, y) =', 'x^2 + 2y^2', { cls: 'w2' }), fld('p0', 'X₀ = (x; y)', '2; 2'), fld('a', 'α (krok)', '0.1'), fld('eps', 'ε (‖ΔX‖ < ε)', '1e-3'), fld('n', 'max. iterácií', '200')],
+  run(v) {
+    const F = compileFn(v.f, ['x', 'y']); let p = parsePt(v.p0, 'X₀'); const a = num(v.a, 'α'), eps = num(v.eps, 'ε'), N = Math.round(num(v.n));
+    const H0 = F.hess(...p); const lam = eigSym(H0);
+    let html = '', rows = [[0, p[0], p[1], F.f(...p), '']], pts = [p], conv = false, k;
+    for (k = 1; k <= N; k++) {
+      const g = F.grad(...p), pn = subv(p, mul(a, g)), dx = dist(pn, p);
+      if (k <= DETAIL) html += box(`Iterácia ${k}`,
+        L(`∇f(${fm(p[0])}, ${fm(p[1])}) = (f<sub>x</sub>, f<sub>y</sub>) = <b>${P(g)}</b>`) +
+        L(`x${sub(k)} = ${fm(p[0])} − ${fm(a)}·${fp(g[0])} = <b>${fm(pn[0])}</b>`) +
+        L(`y${sub(k)} = ${fm(p[1])} − ${fm(a)}·${fp(g[1])} = <b>${fm(pn[1])}</b>`) +
+        L(`X${sub(k)} = <b>${P(pn)}</b>, &nbsp;f(X${sub(k)}) = ${fm(F.f(...pn))}, &nbsp;‖ΔX‖ = ${fm(dx)}`));
+      p = pn; pts.push(p); rows.push([k, p[0], p[1], F.f(...p), fm(dx)]);
+      if (!p.every(Number.isFinite) || norm(p) > 1e12) { html += warn('Metóda diverguje, zmenši α.'); break; }
+      if (dx < eps) { conv = true; break; }
+    }
+    const note = `Hessova matica v X₀: ${mat(H0)} λ = ${lam.map(l => fm(l)).join(', ')} → pre kvadratickú f konverguje pri α &lt; 2/λ<sub>max</sub> = <b>${fm(2 / lam[0])}</b>`;
+    return {
+      html: res(conv ? `Konvergencia po <b>${k}</b> iteráciách: X* ≈ <b>${P(p)}</b>, f ≈ <b>${fm(F.f(...p))}</b>` : `Po ${Math.min(k, N)} iteráciách: X ≈ <b>${P(p)}</b> (tolerancia nedosiahnutá)`)
+        + `<div class="split"><div>${html}</div><div><canvas class="plot" id="g2-plot"></canvas>${C(note)}</div></div>`
+        + `<details class="more"><summary>Tabuľka všetkých iterácií (${rows.length - 1})</summary>${table(['k', 'x', 'y', 'f', '‖ΔX‖'], rows)}</details>`,
+      after: () => plot2D('g2-plot', F, pts)
+    };
+  }
+};
+
+/* ---------- Steepest descent s line search ---------- */
+CALCS.sd = {
+  title: 'Metóda najstrmšieho spádu (steepest descent) s hľadaním po priamke', sub: 'Prednáška 5. Smer je normovaný −∇f a krok γ minimalizuje f na priamke.',
+  formula: 'S<sub>k</sub> = −∇f(P<sub>k</sub>)/‖∇f(P<sub>k</sub>)‖,   γ* = argmin φ(γ) = f(P<sub>k</sub> + γ·S<sub>k</sub>),   P<sub>k+1</sub> = P<sub>k</sub> + γ*·S<sub>k</sub>',
+  fn: ['x', 'y'], plot: true,
+  fields: [fld('f', 'f(x, y) =', '(x - y)/(x^2 + y^2 + 2)', { cls: 'w2' }), fld('p0', 'P₀ = (x; y)', '-3; -2'),
+    fld('nrm', 'smer', 'n', { type: 'select', opts: [['n', 'normovaný −∇f/‖∇f‖ (prednáška)'], ['u', 'nenormovaný −∇f']] }),
+    fld('eps', 'ε (‖ΔP‖ < ε)', '1e-4'), fld('n', 'max. iterácií', '30'),
+    fld('gm', 'γ ručne (voliteľné, napr. 4.8186 2.7708)', '', { cls: 'w2' })],
+  run(v) {
+    const F = compileFn(v.f, ['x', 'y']); let p = parsePt(v.p0, 'P₀'); const eps = num(v.eps, 'ε'), N = Math.round(num(v.n)), normed = v.nrm === 'n';
+    const gms = String(v.gm || '').trim() ? parseVec(v.gm) : [];
+    let html = '', rows = [[0, p[0], p[1], F.f(...p), '', '']], pts = [p], conv = false, k;
+    for (k = 1; k <= N; k++) {
+      const g = F.grad(...p), gn = norm(g);
+      if (gn < 1e-14) { conv = true; html += C('∇f = 0, sme v stacionárnom bode.'); break; }
+      const s = normed ? mul(-1 / gn, g) : mul(-1, g);
+      const phi = t => F.f(p[0] + t * s[0], p[1] + t * s[1]);
+      const manual = k - 1 < gms.length, gExact = lineMin(phi, true);
+      const gam = manual ? gms[k - 1] : gExact, pn = add(p, mul(gam, s)), dx = dist(pn, p);
+      const fr = (frac(g[0]) && frac(g[1])) ? ` = (${frac(g[0])}, ${frac(g[1])})` : '';
+      if (k <= DETAIL) html += box(`Krok ${k}`,
+        L(`∇f(P${sub(k - 1)}) = ∇f${P(p)} = <b>${P(g)}</b>${fr}`) +
+        (normed ? L(`‖∇f‖ = √(${fp(g[0])}² + ${fp(g[1])}²) = ${fm(gn)}`) : '') +
+        L(`S${sub(k - 1)} = ${normed ? '−∇f/‖∇f‖' : '−∇f'} = <b>${P(s)}</b>`) +
+        L(`φ(γ) = f(${fm(p[0])} + γ·${fp(s[0])}, ${fm(p[1])} + γ·${fp(s[1])}) → φ'(γ) = 0`) +
+        (manual ? L(`γ = <b>${fm(gam)}</b> (zadané ručne; presné minimum φ je pri γ* = ${fm(gExact)}, φ(γ) = ${fm(phi(gam))} vs. φ(γ*) = ${fm(phi(gExact))})`)
+          : L(`γ* = <b>${fm(gam)}</b> &nbsp; (najväčší krok, ktorý môžeme spraviť)`)) +
+        L(`P${sub(k)} = P${sub(k - 1)} + γ*·S${sub(k - 1)} = ${P(p)} + ${fm(gam)}·${P(s)} = <b>${P(pn)}</b>`) +
+        L(`f(P${sub(k)}) = ${fm(F.f(...pn))}`));
+      p = pn; pts.push(p); rows.push([k, p[0], p[1], F.f(...p), gam, fm(dx)]);
+      if (!p.every(Number.isFinite)) break;
+      if (dx < eps) { conv = true; break; }
+    }
+    return {
+      html: res((conv ? `Konvergencia po <b>${k}</b> krokoch: ` : 'Výsledok: ') + `P ≈ <b>${P(p)}</b>, f ≈ <b>${fm(F.f(...p))}</b>`)
+        + `<div class="split"><div>${html}</div><div><canvas class="plot" id="sd-plot"></canvas>${C('Susedné kroky sú na seba kolmé (cik-cak).')}</div></div>`
+        + `<details class="more"><summary>Tabuľka všetkých krokov</summary>${table(['k', 'x', 'y', 'f', 'γ*', '‖ΔP‖'], rows)}</details>`,
+      after: () => plot2D('sd-plot', F, pts)
+    };
+  }
+};
+
+/* ---------- Newton 2D ---------- */
+CALCS.n2 = {
+  title: 'Newtonova metóda v 2D', sub: 'Cvičenie 4 a 5. Využíva gradient aj Hessovu maticu (zakrivenie).',
+  formula: 'X<sub>k+1</sub> = X<sub>k</sub> − H<sup>−1</sup>(X<sub>k</sub>)·∇f(X<sub>k</sub>)    ⇔    H·Δ = −∇f,  X<sub>k+1</sub> = X<sub>k</sub> + Δ',
+  fn: ['x', 'y'], plot: true,
+  fields: [fld('f', 'f(x, y) =', 'x^2 + 2y^2', { cls: 'w2' }), fld('p0', 'X₀ = (x; y)', '2; 2'), fld('eps', 'ε (‖Δ‖ < ε)', '1e-3'), fld('n', 'max. iterácií', '50')],
+  run(v) {
+    const F = compileFn(v.f, ['x', 'y']); let p = parsePt(v.p0, 'X₀'); const eps = num(v.eps, 'ε'), N = Math.round(num(v.n));
+    let html = '', rows = [[0, p[0], p[1], F.f(...p), '']], pts = [p], conv = false, k;
+    for (k = 1; k <= N; k++) {
+      const g = F.grad(...p), H = F.hess(...p);
+      const det = H[0][0] * H[1][1] - H[0][1] * H[1][0];
+      if (Math.abs(det) < 1e-14) { html += warn(`det H = 0 v bode ${P(p)}, Hessova matica nemá inverziu a metóda zlyhala.`); break; }
+      const Hi = [[H[1][1] / det, -H[0][1] / det], [-H[1][0] / det, H[0][0] / det]];
+      const d = [-(Hi[0][0] * g[0] + Hi[0][1] * g[1]), -(Hi[1][0] * g[0] + Hi[1][1] * g[1])];
+      const pn = add(p, d), dn = norm(d);
+      const pd = H[0][0] > 0 && det > 0;
+      if (k <= DETAIL) html += box(`Iterácia ${k}`,
+        L(`∇f${P(p)} = ${col(g)} &nbsp; H = ${mat(H)} &nbsp; det H = ${fm(H[0][0])}·${fp(H[1][1])} − ${fp(H[0][1])}² = <b>${fm(det)}</b>`) +
+        L(`H<sup>−1</sup> = 1/${fp(det)} · ${mat([[H[1][1], -H[0][1]], [-H[1][0], H[0][0]]])} = ${mat(Hi)}`) +
+        L(`Δ = −H<sup>−1</sup>·∇f = −${mat(Hi)}·${col(g)} = <b>${col(d)}</b>`) +
+        L(`X${sub(k)} = ${P(p)} + ${P(d)} = <b>${P(pn)}</b>, &nbsp;f = ${fm(F.f(...pn))}, &nbsp;‖Δ‖ = ${fm(dn)}`) +
+        (pd ? '' : C(tag('H nie je kladne definitná: krok nemusí ísť k minimu (sedlo / maximum)', 'warn'))));
+      p = pn; pts.push(p); rows.push([k, p[0], p[1], F.f(...p), fm(dn)]);
+      if (!p.every(Number.isFinite)) break;
+      if (dn < eps) { conv = true; break; }
+    }
+    const H = F.hess(...p), det = H[0][0] * H[1][1] - H[0][1] ** 2;
+    const kind = det > 0 && H[0][0] > 0 ? tag('minimum (H kladne definitná)', 'ok') : det > 0 ? tag('maximum', 'bad') : det < 0 ? tag('sedlový bod', 'warn') : tag('neurčité', 'warn');
+    return {
+      html: res((conv ? `Konvergencia po <b>${k}</b> iteráciách: ` : 'Výsledok: ') + `X* ≈ <b>${P(p)}</b>, f ≈ <b>${fm(F.f(...p))}</b> ${kind}`)
+        + `<div class="split"><div>${html}</div><div><canvas class="plot" id="n2-plot"></canvas>${C('Pri kvadratickej funkcii je minimum hotové po 1 kroku.')}</div></div>`
+        + `<details class="more"><summary>Tabuľka všetkých iterácií</summary>${table(['k', 'x', 'y', 'f', '‖Δ‖'], rows)}</details>`,
+      after: () => plot2D('n2-plot', F, pts)
+    };
+  }
+};
+
+/* ---------- Nelder–Mead ---------- */
+function nmStepCv(F, V, c) {
+  // cvičenie: A best, B good, C worst
+  const s = V.slice().sort((a, b) => F.f(...a) - F.f(...b));
+  const [A, B, Cw] = s, fA = F.f(...A), fB = F.f(...B), fC = F.f(...Cw);
+  const lines = [];
+  lines.push(L(`Zoradenie: f(A) = f${P(A)} = ${fm(fA)} ≤ f(B) = f${P(B)} = ${fm(fB)} ≤ f(C) = f${P(Cw)} = ${fm(fC)}`));
+  lines.push(C('A = najlepší (best), B = dobrý (good), C = najhorší (worst)'));
+  const M = mul(0.5, add(A, B));
+  lines.push(L(`Ťažisko M = (A + B)/2 = <b>${P(M)}</b>`));
+  const R = add(M, mul(c.a, subv(M, Cw))), fR = F.f(...R);
+  lines.push(L(`Reflexia R = M + ${fm(c.a)}·(M − C) = <b>${P(R)}</b>, f(R) = <b>${fm(fR)}</b>`));
+  let N, act;
+  if (!lt(fR, fA) && lt(fR, fB)) {
+    lines.push(L(`f(A) ≤ f(R) &lt; f(B): ${fm(fA)} ≤ ${fm(fR)} &lt; ${fm(fB)} ✓ → C ← R`)); N = [A, B, R]; act = 'reflexia';
+  } else if (lt(fR, fA)) {
+    const E = add(M, mul(c.g, subv(R, M))), fE = F.f(...E);
+    lines.push(L(`f(R) &lt; f(A): ${fm(fR)} &lt; ${fm(fA)} → <b>expanzia</b> E = M + ${fm(c.g)}·(R − M) = <b>${P(E)}</b>, f(E) = <b>${fm(fE)}</b>`));
+    if (lt(fE, fR)) { lines.push(L(`f(E) &lt; f(R) ✓ → C ← E`)); N = [A, B, E]; act = 'expanzia'; }
+    else { lines.push(L(`f(E) ≥ f(R) → C ← R`)); N = [A, B, R]; act = 'reflexia'; }
+  } else {
+    const K = add(M, mul(c.r, subv(Cw, M))), fK = F.f(...K);
+    lines.push(L(`f(R) ≥ f(B): ${fm(fR)} ≥ ${fm(fB)} → <b>kontrakcia</b> K = M + ${fm(c.r)}·(C − M) = <b>${P(K)}</b>, f(K) = <b>${fm(fK)}</b>`));
+    if (lt(fK, fC)) { lines.push(L(`f(K) &lt; f(C) ✓ → C ← K`)); N = [A, B, K]; act = 'kontrakcia'; }
+    else {
+      const B2 = add(A, mul(c.s, subv(B, A))), C2 = add(A, mul(c.s, subv(Cw, A)));
+      lines.push(L(`f(K) ≥ f(C) → <b>zmrštenie</b> k A: B ← A + ${fm(c.s)}(B − A) = ${P(B2)}, C ← A + ${fm(c.s)}(C − A) = ${P(C2)}`));
+      N = [A, B2, C2]; act = 'zmrštenie';
+    }
+  }
+  return { N, act, lines, labels: ['A', 'B', 'C'] };
+}
+function nmStepMathews(F, V) {
+  // prednáška: B best, G good, W worst
+  const s = V.slice().sort((a, b) => F.f(...a) - F.f(...b));
+  let [B, G, W] = s; const fB = F.f(...B), fG = F.f(...G), fW = F.f(...W);
+  const lines = [];
+  lines.push(L(`Zoradenie: f(B) = f${P(B)} = ${fm(fB)} ≤ f(G) = f${P(G)} = ${fm(fG)} ≤ f(W) = f${P(W)} = ${fm(fW)}`));
+  const M = mul(0.5, add(B, G));
+  lines.push(L(`M = (B + G)/2 = <b>${P(M)}</b>`));
+  const R = subv(mul(2, M), W), fR = F.f(...R);
+  lines.push(L(`Reflexia R = 2M − W = <b>${P(R)}</b>, f(R) = <b>${fm(fR)}</b>`));
+  let act;
+  if (lt(fR, fG)) {
+    lines.push(L(`f(R) &lt; f(G): ${fm(fR)} &lt; ${fm(fG)} → prípad (i): reflexia alebo expanzia`));
+    if (lt(fB, fR)) { lines.push(L(`f(B) &lt; f(R) → W ← R`)); W = R; act = 'reflexia'; }
+    else {
+      const E = subv(mul(2, R), M), fE = F.f(...E);
+      lines.push(L(`f(R) ≤ f(B) → <b>expanzia</b> E = 2R − M = <b>${P(E)}</b>, f(E) = <b>${fm(fE)}</b>`));
+      if (lt(fE, fB)) { lines.push(L(`f(E) &lt; f(B): ${fm(fE)} &lt; ${fm(fB)} ✓ → W ← E`)); W = E; act = 'expanzia'; }
+      else { lines.push(L(`f(E) ≥ f(B) → W ← R`)); W = R; act = 'reflexia'; }
+    }
+    return { N: [B, G, W], act, lines };
+  }
+  lines.push(L(`f(R) ≥ f(G): ${fm(fR)} ≥ ${fm(fG)} → prípad (ii): kontrakcia alebo zmrštenie`));
+  let Wc = W, fWc = fW;
+  if (lt(fR, fW)) { lines.push(L(`f(R) &lt; f(W) → W ← R`)); Wc = R; fWc = fR; }
+  const C1 = mul(0.5, add(W, M)), C2 = mul(0.5, add(M, R)), f1 = F.f(...C1), f2 = F.f(...C2);
+  const useC1 = f1 <= f2 + 1e-12, Cc = useC1 ? C1 : C2, fC = useC1 ? f1 : f2;
+  lines.push(L(`C₁ = (W + M)/2 = ${P(C1)}, f = ${fm(f1)} &nbsp;&nbsp; C₂ = (M + R)/2 = ${P(C2)}, f = ${fm(f2)} → C = ${useC1 ? 'C₁' : 'C₂'}`));
+  if (lt(fC, fWc)) { lines.push(L(`f(C) &lt; f(W): ${fm(fC)} &lt; ${fm(fWc)} ✓ → <b>kontrakcia</b>, W ← C`)); return { N: [B, G, Cc], act: 'kontrakcia', lines }; }
+  const Sx = mul(0.5, add(B, Wc));
+  lines.push(L(`f(C) ≥ f(W) → <b>zmrštenie</b> k B: S = (B + W)/2 = ${P(Sx)}, W ← S, G ← M`));
+  return { N: [B, M, Sx], act: 'zmrštenie', lines };
+}
+CALCS.nm = {
+  title: 'Nelder–Mead (simplex)', sub: 'Prednáška 4 a cvičenie 4. Bezderivátová metóda, v 2D trojuholník.',
+  formula: 'M = (best + good)/2,  R = M + (M − worst),  E = M + 2(R − M),  K = M + ½(worst − M),  zmrštenie k best (σ = ½)',
+  fn: ['x', 'y'], plot: true,
+  fields: [fld('f', 'f(x, y) =', 'x^2 - 4x + y^2 - y - x*y', { cls: 'w2' }),
+    fld('v', 'variant', 'cv', { type: 'select', opts: [['cv', 'cvičenie (A ≤ B ≤ C, kontrakcia K)'], ['p', 'prednáška – Mathews (B, G, W, C₁/C₂)']] }),
+    fld('A', 'V₁ (x; y)', '0; 1'), fld('B', 'V₂ (x; y)', '1; 1'), fld('Cc', 'V₃ (x; y)', '0; 1.5'),
+    fld('eps', 'ε (d = max‖Vᵢ − best‖)', '1e-3'), fld('n', 'max. iterácií', '200'),
+    fld('coef', 'α γ ρ σ (cvičenie)', '1 2 0.5 0.5')],
+  run(v) {
+    const F = compileFn(v.f, ['x', 'y']);
+    let V = [parsePt(v.A, 'V₁'), parsePt(v.B, 'V₂'), parsePt(v.Cc, 'V₃')];
+    const eps = num(v.eps, 'ε'), N = Math.round(num(v.n));
+    const cf = parseVec(v.coef); const c = { a: cf[0] ?? 1, g: cf[1] ?? 2, r: cf[2] ?? 0.5, s: cf[3] ?? 0.5 };
+    let html = '', rows = [], simp = [V.slice()], best = [], conv = false, k, dmax;
+    const sortV = W => W.slice().sort((a, b) => F.f(...a) - F.f(...b));
+    for (k = 1; k <= N; k++) {
+      const st = v.v === 'p' ? nmStepMathews(F, V) : nmStepCv(F, V, c);
+      V = sortV(st.N); const b = V[0];
+      dmax = Math.max(dist(V[1], b), dist(V[2], b));
+      st.lines.push(L(`Nový simplex: ${V.map(p => `${P(p)} [f = ${fm(F.f(...p))}]`).join(', ')}`));
+      st.lines.push(L(`d = max ‖Vᵢ − best‖ = ${fm(dmax)} ${dmax < eps ? '&lt; ε → STOP' : '≥ ε → pokračujeme'}`));
+      if (k <= DETAIL) html += box(`Iterácia ${k}`, st.lines.join(''), tag(st.act, st.act === 'zmrštenie' ? 'warn' : 'info'));
+      simp.push(V.slice()); best.push(b);
+      rows.push([k, st.act, P(V[0]), F.f(...V[0]), P(V[1]), F.f(...V[1]), P(V[2]), F.f(...V[2]), fm(dmax)]);
+      if (dmax < eps) { conv = true; break; }
+    }
+    const b = V[0];
+    const note = v.v === 'p' ? C('Variant z prednášky: riadky 1–6 sedia s tabuľkou v prednáške (Mathews, Table 8.6). Od 7. riadku sa tabuľka v učebnici odkláňa, lebo tam rozhoduje remíza pri kontrakcii. Na písomku stačia prvé 2 iterácie.') : '';
+    return {
+      html: res((conv ? `Konvergencia po <b>${k}</b> iteráciách (d &lt; ε): ` : `Po ${Math.min(k, N)} iteráciách: `) + `best ≈ <b>${P(b)}</b>, f ≈ <b>${fm(F.f(...b))}</b>`)
+        + `<div class="split"><div>${html}${note}</div><div><canvas class="plot" id="nm-plot"></canvas>${C('Čierny = počiatočný simplex, červené = ďalšie simplexy.')}</div></div>`
+        + `<details class="more"><summary>Tabuľka všetkých iterácií (best / good / worst)</summary>${table(['k', 'krok', 'best', 'f', 'good', 'f', 'worst', 'f', 'd'], rows, { left: [1, 2, 4, 6] })}</details>`,
+      after: () => plot2D('nm-plot', F, [simp[0][0]].concat(best), simp.slice(0, 40))
+    };
+  }
+};
+
+/* ---------- Powell ---------- */
+function powellStep(F, p, u1, u2) {
+  const ls = (q, u) => { const t = lineMin(s => F.f(q[0] + s * u[0], q[1] + s * u[1]), false); return [t, add(q, mul(t, u))]; };
+  const [t1, p1] = ls(p, u1), [t2, p2] = ls(p1, u2);
+  const d = subv(p2, p);
+  let t3 = 0, p3 = p2, nu1 = u1, nu2 = u2;
+  if (norm(d) > 1e-14) { [t3, p3] = ls(p2, d); nu1 = u2; nu2 = d; }
+  return { t1, p1, t2, p2, d, t3, p3, nu1, nu2 };
+}
+CALCS.pw = {
+  title: 'Powellova metóda', sub: 'Cvičenie 5. Bez derivácií: hľadanie minima po priamkach v smeroch u₁, u₂ a v novom smere d.',
+  formula: 'P₁ = min po u₁ z P₀,  P₂ = min po u₂ z P₁,  d = P₂ − P₀,  P₃ = min po d z P₂,  u₁ ← u₂, u₂ ← d',
+  fn: ['x', 'y'], plot: true,
+  fields: [fld('f', 'f(x, y) =', '(x + 2y - 7)^2 + (2x + y - 5)^2', { cls: 'w2' }), fld('p0', 'P₀ = (x; y)', '0; 0'), fld('eps', 'ε (‖P₃ − P₀‖ < ε)', '1e-3'), fld('n', 'max. iterácií', '100')],
+  run(v) {
+    const F = compileFn(v.f, ['x', 'y']); let p = parsePt(v.p0, 'P₀'); const eps = num(v.eps, 'ε'), N = Math.round(num(v.n));
+    let u1 = [1, 0], u2 = [0, 1], html = '', rows = [[0, p[0], p[1], F.f(...p), '']], pts = [p], conv = false, k;
+    for (k = 1; k <= N; k++) {
+      const s = powellStep(F, p, u1, u2), dx = dist(s.p3, p);
+      if (k <= DETAIL) html += box(`Iterácia ${k}`,
+        L(`P₀ = ${P(p)}, f = ${fm(F.f(...p))}; &nbsp;u₁ = ${P(u1)}, u₂ = ${P(u2)}`) +
+        L(`min<sub>t</sub> f(P₀ + t·u₁) → t = ${fm(s.t1)} → P₁ = <b>${P(s.p1)}</b>, f = ${fm(F.f(...s.p1))}`) +
+        L(`min<sub>t</sub> f(P₁ + t·u₂) → t = ${fm(s.t2)} → P₂ = <b>${P(s.p2)}</b>, f = ${fm(F.f(...s.p2))}`) +
+        L(`nový smer d = P₂ − P₀ = <b>${P(s.d)}</b>`) +
+        L(`min<sub>t</sub> f(P₂ + t·d) → t = ${fm(s.t3)} → P₃ = <b>${P(s.p3)}</b>, f = ${fm(F.f(...s.p3))}`) +
+        L(`smery: u₁ ← ${P(s.nu1)}, u₂ ← ${P(s.nu2)}, &nbsp;‖P₃ − P₀‖ = ${fm(dx)}`));
+      pts.push(s.p1, s.p2, s.p3);
+      p = s.p3; u1 = s.nu1; u2 = s.nu2; rows.push([k, p[0], p[1], F.f(...p), fm(dx)]);
+      if (!p.every(Number.isFinite)) break;
+      if (dx < eps) { conv = true; break; }
+    }
+    return {
+      html: res((conv ? `Konvergencia po <b>${k}</b> iteráciách: ` : 'Výsledok: ') + `P ≈ <b>${P(p)}</b>, f ≈ <b>${fm(F.f(...p))}</b>`)
+        + `<div class="split"><div>${html}</div><div><canvas class="plot" id="pw-plot"></canvas>${C('Hľadanie po priamke: najprv sa nájde interval s minimom (zväčšovaním kroku), potom sa zúži zlatým rezom.')}</div></div>`
+        + `<details class="more"><summary>Tabuľka všetkých iterácií</summary>${table(['k', 'x', 'y', 'f', '‖ΔP‖'], rows)}</details>`,
+      after: () => plot2D('pw-plot', F, pts)
+    };
+  }
+};
+
+/* ---------- Porovnanie metód (CV5) ---------- */
+const TESTF = {
+  sfera: ['Sféra', 'x^2 + y^2', '3; 2', '0; 0'],
+  pretiahnuta: ['Pretiahnutá kvadratická', 'x^2 + 25y^2', '3; 1', '0; 0'],
+  booth: ['Booth', '(x + 2y - 7)^2 + (2x + y - 5)^2', '0; 0', '1; 3'],
+  matyas: ['Matyas', '0.26(x^2 + y^2) - 0.48x*y', '5; -3', '0; 0'],
+  rosenbrock: ['Rosenbrock', '(1 - x)^2 + 100(y - x^2)^2', '-1.2; 1', '1; 1'],
+  himmelblau: ['Himmelblau', '(x^2 + y - 11)^2 + (x + y^2 - 7)^2', '0; 0', '3; 2 | -2.805118; 3.131312 | -3.779310; -3.283186 | 3.584428; -1.848126'],
+  beale: ['Beale', '(1.5 - x + x*y)^2 + (2.25 - x + x*y^2)^2 + (2.625 - x + x*y^3)^2', '1; 1', '3; 0.5'],
+};
+CALCS.cmp = {
+  title: 'Porovnanie metód a výsledok konvergencie', sub: 'Cvičenie 5. Spustí gradient, Newton, Nelder–Mead aj Powell až do konvergencie a spočíta iterácie.',
+  formula: 'STOP: ‖X<sub>k</sub> − X*‖ < TOL (známe minimum, ako na cvičení), alebo ‖X<sub>k+1</sub> − X<sub>k</sub>‖ < TOL',
+  fn: ['x', 'y'],
+  fields: [fld('tf', 'testovacia funkcia', 'rosenbrock', { type: 'select', opts: Object.entries(TESTF).map(([k, t]) => [k, t[0]]).concat([['vlastna', 'vlastná']]) }),
+    fld('f', 'f(x, y) =', TESTF.rosenbrock[1], { cls: 'w2' }), fld('p0', 'štart X₀', TESTF.rosenbrock[2]),
+    fld('min', 'minimá X* (oddeľ |)', TESTF.rosenbrock[3], { cls: 'w2' }),
+    fld('stop', 'kritérium', 'x', { type: 'select', opts: [['x', '‖X − X*‖ < TOL (cvičenie 5)'], ['d', '‖ΔX‖ < TOL']] }),
+    fld('tol', 'TOL', '1e-3'), fld('a', 'α (gradient)', '0.001'), fld('h', 'h (počiatočný simplex NM)', '0.5'), fld('n', 'max. iterácií', '20000')],
+  init(key) {
+    const sel = document.getElementById(`${key}-tf`);
+    sel.addEventListener('change', () => {
+      const t = TESTF[sel.value]; if (!t) return;
+      setVal(key, 'f', t[1]); setVal(key, 'p0', t[2]); setVal(key, 'min', t[3]);
+      if (sel.value === 'rosenbrock') setVal(key, 'a', '0.001');
+      else if (sel.value === 'pretiahnuta') setVal(key, 'a', '0.01');
+      else if (sel.value === 'beale' || sel.value === 'himmelblau') setVal(key, 'a', '0.01');
+      else setVal(key, 'a', '0.1');
+      updateSym(key);
+    });
+  },
+  run(v) {
+    const F = compileFn(v.f, ['x', 'y']); const p0 = parsePt(v.p0, 'X₀'); const tol = num(v.tol, 'TOL'), a = num(v.a, 'α'), h = num(v.h, 'h'), N = Math.round(num(v.n));
+    const minima = v.stop === 'x' ? String(v.min).split('|').map(s => s.trim()).filter(Boolean).map(s => parsePt(s, 'X*')) : [];
+    if (v.stop === 'x' && !minima.length) throw Error('Zadaj minimum X* alebo zvoľ kritérium ‖ΔX‖');
+    const near = q => minima.reduce((b, m) => dist(q, m) < dist(q, b) ? m : b, minima[0]);
+    const done = (q, prev, size) => v.stop === 'x' ? dist(q, near(q)) < tol : (size ?? dist(q, prev)) < tol;
+    const bad = q => !q.every(Number.isFinite) || norm(q) > 1e10;
+    const out = [];
+    // gradient
+    (() => { let p = p0, k; for (k = 1; k <= N; k++) { const q = subv(p, mul(a, F.grad(...p))); if (bad(q)) return out.push(['Gradientná', 'X', P(q), '', 'diverguje']); if (done(q, p)) return out.push(['Gradientná', k, P(q), F.f(...q), 'OK']); p = q; } out.push(['Gradientná', 'X', P(p), F.f(...p), `> ${N} it`]); })();
+    // newton
+    (() => { let p = p0, k; for (k = 1; k <= N; k++) { const g = F.grad(...p), H = F.hess(...p), det = H[0][0] * H[1][1] - H[0][1] * H[1][0]; if (Math.abs(det) < 1e-14) return out.push(['Newtonova', 'X', P(p), '', 'det H = 0']); const d = [-(H[1][1] * g[0] - H[0][1] * g[1]) / det, -(-H[1][0] * g[0] + H[0][0] * g[1]) / det]; const q = add(p, d); if (bad(q)) return out.push(['Newtonova', 'X', P(q), '', 'diverguje']); if (done(q, p)) return out.push(['Newtonova', k, P(q), F.f(...q), 'OK']); p = q; } out.push(['Newtonova', 'X', P(p), F.f(...p), `> ${N} it`]); })();
+    // nelder-mead (cvičenie, simplex x0, x0+(h,0), x0+(0,h))
+    (() => { let V = [p0, add(p0, [h, 0]), add(p0, [0, h])], k; const c = { a: 1, g: 2, r: .5, s: .5 }; for (k = 1; k <= N; k++) { V = nmStepCv(F, V, c).N.sort((x, y) => F.f(...x) - F.f(...y)); const b = V[0]; const size = Math.max(dist(V[1], b), dist(V[2], b)); if (bad(b)) return out.push(['Nelder–Mead', 'X', P(b), '', 'diverguje']); if (done(b, null, size)) return out.push(['Nelder–Mead', k, P(b), F.f(...b), 'OK']); if (size < 1e-15) return out.push(['Nelder–Mead', 'X', P(b), F.f(...b), 'zasekol sa']); } out.push(['Nelder–Mead', 'X', P(V[0]), F.f(...V[0]), `> ${N} it`]); })();
+    // powell
+    (() => { let p = p0, u1 = [1, 0], u2 = [0, 1], k; for (k = 1; k <= Math.min(N, 5000); k++) { const s = powellStep(F, p, u1, u2); if (bad(s.p3)) return out.push(['Powell', 'X', P(s.p3), '', 'diverguje']); if (done(s.p3, p)) return out.push(['Powell', k, P(s.p3), F.f(...s.p3), 'OK']); if (norm(s.d) < 1e-14) return out.push(['Powell', 'X', P(s.p3), F.f(...s.p3), 'zasekol sa']); p = s.p3; u1 = s.nu1; u2 = s.nu2; } out.push(['Powell', 'X', P(p), F.f(...p), '> limit']); })();
+    const okRows = out.filter(r => typeof r[1] === 'number');
+    const bestM = okRows.length ? okRows.reduce((b, r) => r[1] < b[1] ? r : b) : null;
+    const rows = out.map(r => { const row = [r[0], r[1], r[2], r[3], r[4] === 'OK' ? tag('OK', 'ok') : tag(r[4], 'bad')]; if (bestM && r === bestM) row._cls = 'hl'; return row; });
+    const H = F.hess(...(minima[0] || p0)), lam = eigSym(H);
+    return (bestM ? res(`Najmenej iterácií: <b>${bestM[0]}</b> (${bestM[1]})`) : '')
+      + table(['metóda', 'iterácie', 'koncový bod', 'f', 'stav'], rows, { left: [0, 2] })
+      + C(`Hessian v ${minima[0] ? 'X*' : 'X₀'}: λ = ${lam.map(l => fm(l)).join(', ')} → gradient s pevným α konverguje (lokálne) pri α &lt; 2/λ<sub>max</sub> = <b>${fm(2 / lam[0])}</b>. NM štartuje zo simplexu X₀, X₀+(h,0), X₀+(0,h). Počty iterácií sa môžu mierne líšiť od Pythonu na cvičení podľa detailov implementácie.`);
+  }
+};
+
+/* ============================================================
+   Neurónové siete
+   ============================================================ */
+const sgn = z => z >= 0 ? 1 : -1;
+const zExpr = (w, x, b) => w.map((wi, i) => `${fm(wi)}·${fp(x[i])}`).join(' + ') + (b !== undefined ? ` + ${fp(b)}` : '');
+const circ = i => '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳'[i] || `(${i + 1})`;
+function lineEq(w, b) {
+  if (w.length !== 2) return '';
+  if (Math.abs(w[1]) > 1e-12) return `Rozhodovacia hranica: ${fm(w[0])}·x₁ + ${fp(w[1])}·x₂ + ${fp(b)} = 0 &nbsp;⇒&nbsp; <b>x₂ = ${fm(-w[0] / w[1])}·x₁ + ${fp(-b / w[1])}</b>`;
+  if (Math.abs(w[0]) > 1e-12) return `Rozhodovacia hranica: <b>x₁ = ${fm(-b / w[0])}</b> (zvislá priamka)`;
+  return 'Váhy sú nulové, hranica neexistuje.';
+}
+function checkTable(rows, w, b, act) {
+  let all = true;
+  const r = rows.map(({ x, t }) => { const z = b + dot(w, x), y = act(z), ok = y === t[0]; if (!ok) all = false; return [x.join(' '), t[0], z, y, ok ? tag('✓', 'ok') : tag('✗', 'bad')]; });
+  return { all, html: table(['x', 't', 'z = y_in', 'ŷ', ''], r, { left: [0] }) };
+}
+
+/* ---------- McCulloch–Pitts ---------- */
+const LOGIC = {
+  AND: [[1, 1, 1], [1, 0, 0], [0, 1, 0], [0, 0, 0]], OR: [[1, 1, 1], [1, 0, 1], [0, 1, 1], [0, 0, 0]],
+  NAND: [[1, 1, 0], [1, 0, 1], [0, 1, 1], [0, 0, 1]], NOR: [[1, 1, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]],
+  ANDNOT: [[1, 1, 0], [1, 0, 1], [0, 1, 0], [0, 0, 0]], XOR: [[1, 1, 0], [1, 0, 1], [0, 1, 1], [0, 0, 0]],
+  NOT: [[1, 0], [0, 1]],
+};
+const logicText = k => LOGIC[k].map(r => `${r.slice(0, -1).join(' ')} | ${r[r.length - 1]}`).join('\n');
+CALCS.mp = {
+  title: 'McCulloch–Pittsov neurón', sub: 'Prednáška 6 a cvičenie 6. Váhy a prah nastavujeme ručne. Tlačidlo „Nájdi váhy“ preskúša celé čísla −3 … 3.',
+  formula: 'z = Σ wᵢ·xᵢ,   y = 1 ak z ≥ θ, inak 0',
+  fields: [fld('fn', 'logická funkcia', 'AND', { type: 'select', opts: Object.keys(LOGIC).map(k => [k, k === 'ANDNOT' ? 'AND NOT (x₁ ∧ ¬x₂)' : k]).concat([['vlastna', 'vlastná tabuľka']]) }),
+    fld('data', 'tabuľka x₁ x₂ | y', logicText('AND'), { type: 'area', cls: 'w2' }),
+    fld('w', 'váhy w₁ w₂ …', '1 1'), fld('th', 'prah θ', '2'),
+    fld('search', 'pri hľadaní', 'th', { type: 'select', opts: [['th', 'θ ponechať pevné'], ['all', 'hľadať aj θ (0 … 4)']] })],
+  extra: `<button class="btn" data-mpsearch="1">Nájdi váhy</button>`,
+  init(key) {
+    const sel = document.getElementById(`${key}-fn`);
+    sel.addEventListener('change', () => { if (LOGIC[sel.value]) setVal(key, 'data', logicText(sel.value)); });
+    document.querySelector(`#calc-${key} [data-mpsearch]`).addEventListener('click', () => runCalc(key, 'search'));
+  },
+  run(v, mode) {
+    const rows = parseRows(v.data); const n = rows[0].x.length;
+    if (mode === 'search') {
+      const fixed = v.search === 'th' ? [num(v.th, 'θ')] : [0, 0.5, 1, 1.5, 2, 2.5, 3, 4];
+      const sols = [];
+      const rec = (i, w) => {
+        if (i === n) { for (const th of fixed) if (rows.every(r => ((dot(w, r.x) >= th) ? 1 : 0) === r.t[0])) sols.push([w.slice(), th]); return; }
+        for (let a = -3; a <= 3; a++) { w.push(a); rec(i + 1, w); w.pop(); }
+      };
+      rec(0, []);
+      sols.sort((a, b) => (a[0].reduce((s, x) => s + Math.abs(x), 0) + a[1]) - (b[0].reduce((s, x) => s + Math.abs(x), 0) + b[1]));
+      if (!sols.length) return res(`Pre ${v.search === 'th' ? `θ = ${fm(fixed[0])}` : 'žiadne θ'} <b>neexistujú</b> celočíselné váhy z −3 … 3.`) + C('Funkcia buď nie je lineárne separabilná (XOR), alebo potrebuje bias, napr. NOT pri θ > 0 (pre x = 0 je z = 0).');
+      return res(`Našlo sa ${sols.length} riešení. Najjednoduchšie: w = (${sols[0][0].join(', ')}), θ = ${fm(sols[0][1])}`)
+        + table(['w', 'θ'], sols.slice(0, 12).map(s => [`(${s[0].join(', ')})`, s[1]]), { left: [0] });
+    }
+    const w = parseVec(v.w), th = num(v.th, 'θ');
+    if (w.length !== n) throw Error(`Počet váh (${w.length}) ≠ počet vstupov (${n})`);
+    let all = true;
+    const r = rows.map(({ x, t }) => { const z = dot(w, x), y = z >= th ? 1 : 0, ok = y === t[0]; if (!ok) all = false; return [x.join(' '), t[0], `${zExpr(w, x)} = ${fm(z)}`, `${fm(z)} ≥ ${fm(th)} ${z >= th ? '✓' : '✗'}`, y, ok ? tag('✓', 'ok') : tag('✗', 'bad')]; });
+    return res(all ? `Váhy w = (${w.map(q => fm(q)).join(', ')}) a θ = ${fm(th)} <b>realizujú</b> zadanú funkciu ✓` : 'Toto nastavenie <b>nefunguje</b> pre všetky riadky ✗')
+      + table(['x', 'cieľ', 'z = Σ wᵢxᵢ', 'z ≥ θ ?', 'ŷ', ''], r, { left: [0, 2, 3] });
+  }
+};
+
+/* ---------- Hebb ---------- */
+CALCS.hebb = {
+  title: 'Hebbov neurón (Hebbovo pravidlo)', sub: 'Prednáška 6. Váhy začínajú na 0 a robí sa jeden prechod trénovacou množinou.',
+  formula: 'Δwᵢ = xᵢ·t,   Δb = t,   w(new) = w(old) + Δw',
+  fields: [fld('data', 'dáta x₁ x₂ | t', '1 1 | 1\n1 -1 | -1\n-1 1 | -1\n-1 -1 | -1', { type: 'area', cls: 'w2' }),
+    fld('w0', 'počiatočné w', '0 0'), fld('b0', 'počiatočné b', '0'), fld('ep', 'epochy', '1'),
+    fld('act', 'aktivácia pri kontrole', 'auto', { type: 'select', opts: [['auto', 'podľa cieľov'], ['bip', 'bipolárna (z ≥ 0 → 1, inak −1)'], ['bin', 'binárna (z ≥ 0 → 1, inak 0)']] })],
+  run(v) {
+    const rows = parseRows(v.data); const n = rows[0].x.length;
+    let w = parseVec(v.w0); if (w.length !== n) w = Array(n).fill(0);
+    let b = num(v.b0, 'b'); const E = Math.max(1, Math.round(num(v.ep)));
+    const head = [...rows[0].x.map((_, i) => `x${sub(i + 1)}`), 'b', 't', ...rows[0].x.map((_, i) => `Δw${sub(i + 1)}`), 'Δb', ...rows[0].x.map((_, i) => `w${sub(i + 1)}`), 'b'];
+    const tr = [];
+    const start = [...Array(n).fill(''), '', '', ...Array(n).fill(''), '', ...w, b]; start._cls = 'hl'; tr.push(start);
+    for (let e = 1; e <= E; e++) rows.forEach(({ x, t }, i) => {
+      const dw = x.map(xi => xi * t[0]), db = t[0];
+      w = add(w, dw); b += db;
+      const r = [...x, 1, t[0], ...dw, db, ...w, b]; if (i === 0 && e > 1) r._cls = 'sepr'; tr.push(r);
+    });
+    const binT = rows.every(r => r.t[0] === 0 || r.t[0] === 1);
+    const bip = v.act === 'bip' || (v.act === 'auto' && !binT);
+    const act = bip ? sgn : (z => z >= 0 ? 1 : 0);
+    const chk = checkTable(rows, w, b, act);
+    return res(`Výsledné váhy: <b>w = (${w.map(q => fm(q)).join(', ')}), b = ${fm(b)}</b> ${chk.all ? tag('klasifikuje všetko správne', 'ok') : tag('neklasifikuje všetko správne', 'bad')}`)
+      + table(head, tr)
+      + (n === 2 ? C(lineEq(w, b)) : '')
+      + `<div class="grp-title" style="margin-top:12px">Kontrola (${bip ? 'bipolárna' : 'binárna'} aktivácia)</div>` + chk.html
+      + (binT ? warn('Pri binárnych cieľoch (t = 0) je Δw = x·0 = 0, takže sa riadky s t = 0 vôbec neučia. Preto Hebb s binárnymi dátami zlyhá a treba bipolárne.') : '');
+  }
+};
+
+/* ---------- Perceptrón ---------- */
+CALCS.perc = {
+  title: 'Perceptrón (Rosenblatt)', sub: 'Prednáška 7 a cvičenie 6. Váhy sa upravujú len pri chybe, epochy sa opakujú, kým sa nič nezmení.',
+  formula: 'cvičenie: ŷ = 1 ak z ≥ 0 inak −1;  w ← w + α(t − ŷ)x,  b ← b + α(t − ŷ)  ·  prednáška: y ∈ {1, 0, −1} s prahom θ;  w ← w + α·t·x,  b ← b + α·t',
+  fields: [fld('data', 'dáta x₁ x₂ … | t', '1 1 | 1\n1 0 | -1\n0 1 | -1\n0 0 | -1', { type: 'area', cls: 'w2' }),
+    fld('var', 'variant', 'cv', { type: 'select', opts: [['cv', 'cvičenie 6: e = t − ŷ, prah 0'], ['fa', 'prednáška 7 (Fausett): α·t·x, pásmo ±θ']] }),
+    fld('a', 'α', '1'), fld('th', 'θ (len prednáška)', '0.2'), fld('w0', 'počiatočné w', '0 0'), fld('b0', 'počiatočné b', '0'), fld('ep', 'max. epoch', '10')],
+  run(v) {
+    const rows = parseRows(v.data); const n = rows[0].x.length;
+    const a = num(v.a, 'α'), th = num(v.th, 'θ'), E = Math.round(num(v.ep));
+    let w = parseVec(v.w0); if (w.length !== n) w = Array(n).fill(0); let b = num(v.b0, 'b');
+    const binT = rows.every(r => r.t[0] === 0 || r.t[0] === 1);
+    const actCv = z => z >= 0 ? 1 : (binT ? 0 : -1);
+    const actFa = z => z > th ? 1 : z < -th ? -1 : 0;
+    let html = '', conv = false, e, hist = [];
+    for (e = 1; e <= E; e++) {
+      let changed = false, body = '';
+      rows.forEach(({ x, t }, i) => {
+        const T = t[0], z = b + dot(w, x);
+        const y = v.var === 'fa' ? actFa(z) : actCv(z);
+        let s = L(`${circ(i)} (${x.map(q => fm(q)).join(", ")}) &nbsp;t = ${fm(T)} &nbsp;| w = (${w.map(q => fm(q)).join(', ')}), b = ${fm(b)}`);
+        s += L(`&nbsp;&nbsp;&nbsp;z = ${zExpr(w, x, b)} = ${fm(z)} ⇒ ŷ = ${fm(y)} ${y === T ? '= t ✓' : '≠ t ✗'}`);
+        if (y !== T) {
+          changed = true;
+          const k = v.var === 'fa' ? a * T : a * (T - y);
+          const nw = w.map((wi, j) => wi + k * x[j]), nb = b + k;
+          s += L(`&nbsp;&nbsp;&nbsp;${v.var === 'fa' ? `α·t = ${fm(a)}·${fp(T)} = ${fm(k)}` : `e = t − ŷ = ${fm(T)} − ${fp(y)} = ${fm(T - y)}, α·e = ${fm(k)}`}`);
+          s += L(`&nbsp;&nbsp;&nbsp;${nw.map((v2, j) => `w${sub(j + 1)} = ${fm(w[j])} + ${fp(k)}·${fp(x[j])} = <b>${fm(v2)}</b>`).join(', ')}, b = ${fm(b)} + ${fp(k)} = <b>${fm(nb)}</b>`);
+          w = nw; b = nb;
+        } else s += C('&nbsp;&nbsp;&nbsp;bez zmeny');
+        body += `<div style="padding:4px 0;border-bottom:1px dashed var(--line)">${s}</div>`;
+      });
+      hist.push([e, `(${w.map(q => fm(q)).join(', ')})`, b, changed ? 'áno' : 'nie']);
+      html += box(`Epocha E${e}`, body, `(w, b) = (${w.map(q => fm(q)).join(', ')}, ${fm(b)}) ${changed ? '' : tag('bez zmeny → STOP', 'ok')}`);
+      if (!changed) { conv = true; break; }
+    }
+    const act = v.var === 'fa' ? actFa : actCv;
+    const chk = checkTable(rows, w, b, act);
+    return res(conv ? `Naučené po <b>${e}</b> epochách: <b>w = (${w.map(q => fm(q)).join(', ')}), b = ${fm(b)}</b>` : `Po ${E} epochách sa perceptrón <b>nenaučil</b> (dáta asi nie sú lineárne separabilné, napr. XOR).`)
+      + table(['epocha', 'w po epoche', 'b', 'zmena?'], hist, { left: [1] }) + (n === 2 ? C(lineEq(w, b)) : '') + html
+      + `<details class="more"><summary>Kontrola klasifikácie</summary>${chk.html}</details>`;
+  }
+};
+
+/* ---------- ADALINE ---------- */
+CALCS.ada = {
+  title: 'ADALINE (delta pravidlo / LMS / Widrow–Hoff)', sub: 'Prednáška 7, cvičenie 7 a 8. Chyba sa počíta z lineárneho výstupu z a váhy sa upravia v každom kroku.',
+  formula: 'z = b + Σ wᵢxᵢ,   e = t − z,   wᵢ ← wᵢ + α·e·xᵢ,   b ← b + α·e,   E = Σ (t − z)²',
+  fields: [fld('data', 'dáta x₁ x₂ … | t', '1 1 | 1\n1 -1 | -1\n-1 1 | -1\n-1 -1 | -1', { type: 'area', cls: 'w2' }),
+    fld('a', 'α', '0.1'), fld('w0', 'počiatočné w', '0 0'), fld('b0', 'počiatočné b', '0'), fld('ep', 'epochy', '2'),
+    fld('tol', 'tolerancia (max |Δw|)', '0')],
+  run(v) {
+    const rows = parseRows(v.data); const n = rows[0].x.length;
+    const a = num(v.a, 'α'), E = Math.round(num(v.ep)), tol = num(v.tol);
+    let w = parseVec(v.w0); if (w.length !== n) w = Array(n).fill(0); let b = num(v.b0, 'b');
+    let html = '', hist = [], stopped = false;
+    for (let e = 1; e <= E; e++) {
+      let body = '', sumE = 0, sumA = 0, maxd = 0;
+      rows.forEach(({ x, t }, i) => {
+        const T = t[0], z = b + dot(w, x), y = sgn(z), err = T - z;
+        let s = L(`${circ(i)} (${x.map(q => fm(q)).join(", ")}) &nbsp;t = ${fm(T)} &nbsp;| w = (${w.map(q => fm(q)).join(', ')}), b = ${fm(b)}`);
+        s += L(`&nbsp;&nbsp;&nbsp;z = ${zExpr(w, x, b)} = <b>${fm(z)}</b> ⇒ ŷ = ${fm(y)} ${y === T ? '(= t)' : '(≠ t)'}`);
+        s += L(`&nbsp;&nbsp;&nbsp;e = t − z = ${fm(T)} − ${fp(z)} = <b>${fm(err)}</b>`);
+        const nw = w.map((wi, j) => wi + a * err * x[j]), nb = b + a * err;
+        s += L(`&nbsp;&nbsp;&nbsp;${nw.map((q, j) => `w${sub(j + 1)} = ${fm(w[j])} + ${fm(a)}·${fp(err)}·${fp(x[j])} = <b>${fm(q)}</b>`).join(', ')}`);
+        s += L(`&nbsp;&nbsp;&nbsp;b = ${fm(b)} + ${fm(a)}·${fp(err)} = <b>${fm(nb)}</b>`);
+        maxd = Math.max(maxd, ...nw.map((q, j) => Math.abs(q - w[j])), Math.abs(nb - b));
+        w = nw; b = nb;
+        const zA = b + dot(w, x), eA = (zA - T) ** 2;
+        s += L(`&nbsp;&nbsp;&nbsp;E${sub(i + 1)} = (t − z)² = ${fm(err * err)} &nbsp;·&nbsp; s novými váhami (prednáška): (${zExpr(w, x, b)} − ${fp(T)})² = ${fm(eA)}`);
+        sumE += err * err; sumA += eA;
+        body += `<div style="padding:4px 0;border-bottom:1px dashed var(--line)">${s}</div>`;
+      });
+      hist.push([e, `(${w.map(q => fm(q)).join(', ')})`, b, sumE, sumA, maxd]);
+      html += box(`Epocha E${e}`, body, `ΣE = ${fm(sumE)} · ΣE (prednáška) = ${fm(sumA)}`);
+      if (tol > 0 && maxd < tol) { stopped = true; break; }
+    }
+    const chk = checkTable(rows, w, b, sgn);
+    return res(`Po ${hist.length} epochách: <b>w = (${w.map(q => fm(q)).join(', ')}), b = ${fm(b)}</b> ${stopped ? tag('max |Δw| < tolerancia → STOP', 'ok') : ''} ${chk.all ? tag('klasifikuje všetko správne', 'ok') : tag('ešte nie všetko správne', 'warn')}`)
+      + table(['epocha', 'w', 'b', 'Σ(t − z)²', 'ΣE po úprave (P7)', 'max |Δw|'], hist, { left: [1] })
+      + (n === 2 ? C(lineEq(w, b)) : '') + html
+      + `<details class="more"><summary>Kontrola klasifikácie (sign z)</summary>${chk.html}</details>`;
+  }
+};
+
+/* ---------- MADALINE MRI ---------- */
+CALCS.mad = {
+  title: 'MADALINE – pravidlo MRI', sub: 'Cvičenie 7. Dve skryté ADALINE a pevný výstupný neurón (OR: v₁ = v₂ = 1, b = 0.5).',
+  formula: 'zⱼ = bⱼ + w<sub>j1</sub>x₁ + w<sub>j2</sub>x₂,  hⱼ = f(zⱼ),  ŷ = f(v₁h₁ + v₂h₂ + b₃);  t = 1: uprav h so z najbližšie k 0, t = −1: uprav všetky h so z ≥ 0;  w ← w + α(±d − z)x',
+  fields: [fld('data', 'dáta x₁ x₂ | t', '-1 -1 | -1\n-1 1 | 1\n1 -1 | 1\n1 1 | 1', { type: 'area', cls: 'w2' }),
+    fld('a', 'α', '0.1'), fld('d', 'lokálny cieľ d', '0.1'), fld('h1', 'h₁: w₁₁ w₁₂ b₁', '0 0 0'), fld('h2', 'h₂: w₂₁ w₂₂ b₂', '0 0 0'),
+    fld('v', 'výstup: v₁ v₂ b₃', '1 1 0.5'), fld('ep', 'epochy', '1')],
+  run(v) {
+    const rows = parseRows(v.data); if (rows[0].x.length !== 2) throw Error('MADALINE tu má presne 2 vstupy');
+    const a = num(v.a, 'α'), d = num(v.d, 'd'), E = Math.round(num(v.ep));
+    let H = [parseVec(v.h1), parseVec(v.h2)]; if (H.some(h => h.length !== 3)) throw Error('Pre h₁, h₂ zadaj 3 čísla: w w b');
+    const vo = parseVec(v.v); if (vo.length !== 3) throw Error('Výstup: v₁ v₂ b₃');
+    const fwd = x => { const z = H.map(h => h[2] + h[0] * x[0] + h[1] * x[1]); const hh = z.map(sgn); const zo = vo[2] + vo[0] * hh[0] + vo[1] * hh[1]; return { z, hh, zo, y: sgn(zo) }; };
+    const wstr = () => `w₁₁ = ${fm(H[0][0])}, w₁₂ = ${fm(H[0][1])}, b₁ = ${fm(H[0][2])}; &nbsp;w₂₁ = ${fm(H[1][0])}, w₂₂ = ${fm(H[1][1])}, b₂ = ${fm(H[1][2])}`;
+    let html = '', hist = [];
+    for (let e = 1; e <= E; e++) {
+      let body = '', changes = 0;
+      rows.forEach(({ x, t }, i) => {
+        const T = t[0], r = fwd(x);
+        let s = L(`${circ(i)} (${x.map(q => fm(q)).join(", ")}) &nbsp;t = ${fm(T)} &nbsp;| ${wstr()}`);
+        r.z.forEach((z, j) => s += L(`&nbsp;&nbsp;&nbsp;z${sub(j + 1)} = ${fm(H[j][0])}·${fp(x[0])} + ${fm(H[j][1])}·${fp(x[1])} + ${fp(H[j][2])} = ${fm(z)} ⇒ h${sub(j + 1)} = ${r.hh[j]}`));
+        s += L(`&nbsp;&nbsp;&nbsp;z<sub>out</sub> = ${fm(vo[0])}·${fp(r.hh[0])} + ${fm(vo[1])}·${fp(r.hh[1])} + ${fp(vo[2])} = ${fm(r.zo)} ⇒ ŷ = ${fm(r.y)} ${r.y === T ? '= t ✓ → bez zmeny' : '≠ t ✗'}`);
+        if (r.y !== T) {
+          changes++;
+          let idx;
+          if (T === 1) {
+            const cand = [0, 1].filter(j => r.hh[j] !== T);
+            idx = [cand.reduce((bj, j) => Math.abs(r.z[j]) < Math.abs(r.z[bj]) ? j : bj, cand[0])];
+            s += C(`&nbsp;&nbsp;&nbsp;t = 1 → stačí zmeniť jeden neurón: vyberieme h${sub(idx[0] + 1)} (|z| najbližšie k 0)`);
+          } else {
+            idx = [0, 1].filter(j => r.z[j] >= 0);
+            s += C(`&nbsp;&nbsp;&nbsp;t = −1 → upravíme všetky neuróny so z ≥ 0: ${idx.map(j => 'h' + sub(j + 1)).join(', ')}`);
+          }
+          const tgt = T === 1 ? d : -d;
+          idx.forEach(j => {
+            const z = r.z[j], ee = tgt - z, k = a * ee;
+            const nw = [H[j][0] + k * x[0], H[j][1] + k * x[1], H[j][2] + k];
+            s += L(`&nbsp;&nbsp;&nbsp;h${sub(j + 1)}: d = ${fm(tgt)}, e = d − z = ${fm(tgt)} − ${fp(z)} = <b>${fm(ee)}</b> ⇒ w${sub(j + 1 + '1')} = ${fm(H[j][0])} + ${fm(a)}·${fp(ee)}·${fp(x[0])} = <b>${fm(nw[0])}</b>, w${sub(j + 1 + '2')} = <b>${fm(nw[1])}</b>, b${sub(j + 1)} = <b>${fm(nw[2])}</b>`);
+            H[j] = nw;
+          });
+          const r2 = fwd(x);
+          s += L(`&nbsp;&nbsp;&nbsp;kontrola: z = (${r2.z.map(q => fm(q)).join(', ')}) ⇒ h = (${r2.hh.join(', ')}) ⇒ ŷ = ${r2.y} ${r2.y === T ? tag('✓', 'ok') : tag('ešte nie', 'warn')}`);
+        }
+        body += `<div style="padding:4px 0;border-bottom:1px dashed var(--line)">${s}</div>`;
+      });
+      hist.push([e, `(${H[0].map(q => fm(q)).join(', ')})`, `(${H[1].map(q => fm(q)).join(', ')})`, changes]);
+      html += box(`Epocha E${e}`, body, `zmien: ${changes}`);
+      if (!changes) break;
+    }
+    const ok = rows.every(({ x, t }) => fwd(x).y === t[0]);
+    return res(`Skrytá vrstva: h₁ = (w₁₁, w₁₂, b₁) = <b>(${H[0].map(q => fm(q)).join(', ')})</b>, h₂ = <b>(${H[1].map(q => fm(q)).join(', ')})</b> ${ok ? tag('všetky vzory správne', 'ok') : tag('ešte nie všetky správne', 'warn')}`)
+      + table(['epocha', 'h₁ (w₁₁, w₁₂, b₁)', 'h₂ (w₂₁, w₂₂, b₂)', 'zmien'], hist, { left: [1, 2] }) + html
+      + C('Na cvičení sa počítalo s d = 0.1 (e = ±0.1 − z). Podľa Fausetta je d = 1.');
+  }
+};
+
+/* ---------- Learning rate ---------- */
+CALCS.lr = {
+  title: 'Voľba learning rate α cez korelačnú maticu R', sub: 'Prednáška 8 a cvičenie 8. R z trénovacích vstupov, jej vlastné čísla a z nich hranica pre α.',
+  formula: 'R = (1/P)·Σ x(p)ᵀ·x(p) = (1/P)·XᵀX,   det(R − λI) = 0,   α < ½·λ<sub>max</sub> (prednáška),   α < 2/λ<sub>max</sub> (batch GD),   0.1 ≤ P·α ≤ 1',
+  fields: [fld('data', 'vstupy x(p) po riadkoch (cieľ za | sa ignoruje)', '1 1\n1 0\n0 1\n0 0', { type: 'area', cls: 'w2' }),
+    fld('bias', 'pridať bias (stĺpec 1)', false, { type: 'check' })],
+  run(v) {
+    let rows = parseRows(v.data, false).map(r => r.x);
+    if (v.bias) rows = rows.map(x => x.concat(1));
+    const Pn = rows.length, n = rows[0].length;
+    let sumM = Array.from({ length: n }, () => Array(n).fill(0));
+    let outer = '';
+    rows.forEach((x, p) => {
+      const O = x.map(a => x.map(b => a * b));
+      sumM = sumM.map((r, i) => r.map((c, j) => c + O[i][j]));
+      outer += L(`p = ${p + 1}: &nbsp;x(${p + 1})ᵀ·x(${p + 1}) = ${col(x)}·${mat([x])} = ${mat(O)}`);
+    });
+    const R = sumM.map(r => r.map(c => c / Pn));
+    const Rq = R.map(r => r.map(c => { const q = frac(c); return q || fm(c); }));
+    const lam = eigSym(R);
+    let poly = '';
+    const tr = R.reduce((s, r, i) => s + r[i], 0);
+    if (n === 2) {
+      const det = R[0][0] * R[1][1] - R[0][1] * R[1][0];
+      poly = L(`det(R − λI) = (${fm(R[0][0])} − λ)(${fm(R[1][1])} − λ) − ${fp(R[0][1])}·${fp(R[1][0])} = <b>λ² − ${fp(tr)}λ + ${fp(det)} = 0</b>`)
+        + L(`D = ${fp(tr)}² − 4·${fp(det)} = ${fm(tr * tr - 4 * det)}, &nbsp;λ = (${fm(tr)} ± √D)/2 &nbsp; · &nbsp; Vieta: λ₁ + λ₂ = ${ff(tr)}, λ₁·λ₂ = ${ff(det)}`);
+    } else if (n === 3) {
+      const m2 = (i, j) => R[i][i] * R[j][j] - R[i][j] * R[j][i];
+      const c1 = m2(0, 1) + m2(0, 2) + m2(1, 2);
+      const det = R[0][0] * (R[1][1] * R[2][2] - R[1][2] * R[2][1]) - R[0][1] * (R[1][0] * R[2][2] - R[1][2] * R[2][0]) + R[0][2] * (R[1][0] * R[2][1] - R[1][1] * R[2][0]);
+      poly = L(`det(R − λI) = 0 ⇒ <b>λ³ − ${fp(tr)}λ² + ${fp(c1)}λ − ${fp(det)} = 0</b> &nbsp;(Sarrusovo pravidlo)`)
+        + C(`Tip z cvičenia: B = P·R má celé čísla. Vlastné čísla B označ μ, potom λ = μ/P. Substitúcia a = (diagonála − μ) zjednoduší determinant.`);
+    }
+    const lm = lam[0];
+    return res(`λ<sub>max</sub> = <b>${ff(lm)}</b> &nbsp;⇒&nbsp; prednáška: <b>α &lt; ${ff(lm / 2)}</b> &nbsp;·&nbsp; batch GD: <b>α &lt; ${ff(2 / lm)}</b> &nbsp;·&nbsp; best practice: <b>${ff(0.1 / Pn)} ≤ α ≤ ${ff(1 / Pn)}</b> (P = ${Pn})`)
+      + box('1. Vonkajšie súčiny (outer product)', outer)
+      + box('2. Korelačná matica', L(`Σ x(p)ᵀx(p) = ${mat(sumM)} &nbsp; R = 1/${Pn} · ${mat(sumM)} = ${mat(Rq)} = ${mat(R)}`))
+      + box('3. Vlastné čísla', poly + L(`λ = ${lam.map((l, i) => `λ${sub(i + 1)} = <b>${ff(l)}</b>`).join(', ')}`))
+      + box('4. Hranica pre α', L(`prednáška (Hecht-Nielsen): α &lt; ½·λ<sub>max</sub> = ½·${fm(lm)} = <b>${fm(lm / 2)}</b>`) + L(`batch gradient descent: α &lt; 2/λ<sub>max</sub> = 2/${fm(lm)} = <b>${fm(2 / lm)}</b>`) + L(`best practice: 0.1 ≤ P·α ≤ 1 ⇒ ${fm(0.1 / Pn)} ≤ α ≤ ${fm(1 / Pn)}`));
+  }
+};
+
+/* ---------- Asociatívna pamäť ---------- */
+CALCS.am = {
+  title: 'Asociatívna pamäť (Hebb, outer product)', sub: 'Prednáška 8 a cvičenie 8. Matica váh W = SᵀT a vybavenie y = f(x·W).',
+  formula: 'W = Σ s(p)ᵀ·t(p) = SᵀT,   y_in = x·W,   y = f(y_in)',
+  fields: [fld('data', 'trénovacie páry s | t', '1 0 0 0 | 1 0\n1 1 0 0 | 1 0\n0 0 0 1 | 0 1\n0 0 1 1 | 0 1', { type: 'area', cls: 'w2' }),
+    fld('test', 'testovacie vstupy x (0 = neznámy)', '1 0 0 0\n1 1 0 0', { type: 'area', cls: 'w2' }),
+    fld('act', 'aktivácia', 'bin', { type: 'select', opts: [['bin', 'binárna: 1 ak x > 0, inak 0 (P8)'], ['sign', 'sign: 1 ak x ≥ 0, inak −1 (CV8)'], ['none', 'žiadna']] }),
+    fld('cols', 'stĺpce mriežky (pixely, 0 = nekresliť)', '0'), fld('names', 'mená výstupov (voliteľné)', '')],
+  run(v) {
+    const rows = parseRows(v.data); const n = rows[0].x.length, m = rows[0].t.length;
+    const S = rows.map(r => r.x), T = rows.map(r => r.t);
+    let W = Array.from({ length: n }, () => Array(m).fill(0));
+    let outer = '';
+    rows.forEach(({ x, t }, p) => {
+      const O = x.map(a => t.map(b => a * b)); W = W.map((r, i) => r.map((c, j) => c + O[i][j]));
+      if (n <= 6) outer += L(`p = ${p + 1}: s(${p + 1})ᵀ·t(${p + 1}) = ${col(x)}·${mat([t])} = ${mat(O)}`);
+    });
+    const cols = Math.round(num(v.cols || '0'));
+    const names = String(v.names || '').trim().split(/[\s,;]+/).filter(Boolean);
+    const pix = x => cols > 0 && x.length % cols === 0 ? `<span class="pix" style="grid-template-columns:repeat(${cols},11px)">${x.map(q => `<i class="${q > 0 ? 'on' : q === 0 ? 'unk' : ''}"></i>`).join('')}</span>` : '';
+    const act = v.act === 'sign' ? sgn : v.act === 'bin' ? (z => z > 0 ? 1 : 0) : (z => z);
+    const orth = S.map((a, i) => S.map((b, j) => dot(a, b)));
+    const isOrth = orth.every((r, i) => r.every((c, j) => i === j || Math.abs(c) < 1e-12));
+    const recall = (x) => { const yin = W[0].map((_, j) => x.reduce((s, xi, i) => s + xi * W[i][j], 0)); return { yin, y: yin.map(act) }; };
+    const lab = y => { const k = T.findIndex(t => t.every((q, i) => q === y[i])); if (k >= 0) return names[k] ? `je to <b>${names[k]}</b>` : `= t(${k + 1})`;
+      const on = names.filter((_, j) => y[j] === 1);
+      if (names.length && on.length > 1) return `${tag('nejednoznačné', 'warn')} je to aj ${on.map(q => `<b>${q}</b>`).join(' aj ')}`;
+      return names.length ? tag('nevie sa rozhodnúť (remíza / nový vzor)', 'warn') : tag('nezodpovedá žiadnemu t', 'warn'); };
+    const trRows = rows.map(({ x, t }, p) => { const r = recall(x); const ok = r.y.every((q, i) => q === t[i]); return [`${pix(x)}${x.map(q => fm(q)).join(' ')}`, `(${r.yin.map(q => fm(q)).join(', ')})`, `(${r.y.map(q => fm(q)).join(', ')})`, `(${t.map(q => fm(q)).join(", ")})`, ok ? tag('✓', 'ok') : tag('✗', 'bad')]; });
+    let tests = [];
+    try { tests = String(v.test).trim() ? parseRows(v.test, false).map(r => r.x) : []; } catch (e) { tests = []; }
+    tests.forEach((x, i) => { if (x.length !== n) throw Error(`Test ${i + 1}: má ${x.length} hodnôt, treba ${n}`); });
+    const teRows = tests.map((x, i) => { const r = recall(x); return [`${circ(i)} ${pix(x)}${x.map(q => fm(q)).join(' ')}`, `(${r.yin.map(q => fm(q)).join(', ')})`, `(${r.y.map(q => fm(q)).join(', ')})`, lab(r.y)]; });
+    return box('Matica váh W = SᵀT', (outer ? outer : '') + L(`W (${n}×${m}) = ${mat(W)}`) + (cols > 0 && n % cols === 0 ? L(`váhy pre jednotlivé výstupy (ako obrázok): ${W[0].map((_, j) => `${names[j] || 'w' + (j + 1)}: ${mat(Array.from({ length: n / cols }, (_, r) => W.slice(r * cols, r * cols + cols).map(q => q[j])))}`).join(' ')}`) : ''))
+      + box('Ortogonalita vstupov s(k)·s(p)', L(mat(orth)) + C(isOrth ? tag('vstupy sú ortogonálne → vybavenie trénovacích vzorov je presné', 'ok') : tag('vstupy NIE sú ortogonálne → môže vzniknúť cross-talk', 'warn')))
+      + box('Vybavenie trénovacích vzorov', table(['s', 'y_in = s·W', 'f(y_in)', 't', ''], trRows, { left: [0] }))
+      + (teRows.length ? box('Testovacie vstupy', table(['x', 'y_in = x·W', 'f(y_in)', 'výsledok'], teRows, { left: [0, 3] })) : '');
+  }
+};
+
+/* ============================================================
+   Príklady (presety)
+   ============================================================ */
+const PRESETS = [
+  // --- Optimalizácia 1D
+  { calc: 'g1', topic: 'Optimalizácia 1D', src: 'CV4', name: 'Gradient 1D: f = x⁴ − 2x², α = 0.05, x₀ = 2', v: { f: 'x^4 - 2x^2', x0: '2', a: '0.05', eps: '1e-3', n: '50' }, ans: 'x₁ = 2 − 0.05·24 = 0.8 (v materiáli je chybne 0.6, z neho potom x₂ = 0.6768) → min x = 1' },
+  { calc: 'n1', topic: 'Optimalizácia 1D', src: 'CV4', name: 'Newton 1D: f = x⁴ − 2x², x₀ = 2', v: { f: 'x^4 - 2x^2', x0: '2', eps: '1e-3', n: '50' }, ans: 'x₁ = 1.3636, x₂ ≈ 1.108 → x = 1' },
+  { calc: 'n1', topic: 'Optimalizácia 1D', src: 'CV4', name: 'Newton 1D: f = x⁴ − 3x³ + 2, x₀ = 3', v: { f: 'x^4 - 3x^3 + 2', x0: '3', eps: '1e-3', n: '50' }, ans: 'x* = 2.25 (f\' = 4x³ − 9x², f\'\' = 12x² − 18x)' },
+  { calc: 'q1', topic: 'Optimalizácia 1D', src: 'P5', name: 'Kvadratická aproximácia: f = x⁴ − 2x², p₀ = 2, h = 0.1', v: { f: 'x^4 - 2x^2', p0: '2', h: '0.1', n: '4' }, ans: 'minimum x = 1' },
+  // --- Optimalizácia 2D
+  { calc: 'g2', topic: 'Optimalizácia 2D', src: 'CV4', name: 'Gradient 2D: f = x² + 2y², X₀ = (2, 2), α = 0.1', v: { f: 'x^2 + 2y^2', p0: '2; 2', a: '0.1', eps: '1e-3', n: '200' }, ans: 'X₁ = (1.6, 1.2), X₂ = (1.28, 0.72)' },
+  { calc: 'g2', topic: 'Optimalizácia 2D', src: 'CV5 Ú3', name: 'Gradient: f = x² + 25y², X₀ = (3, 1), α = 0.03', v: { f: 'x^2 + 25y^2', p0: '3; 1', a: '0.03', eps: '1e-3', n: '20000' }, ans: 'H = diag(2, 50) → α < 2/50 = 0.04. Skús 0.039 (kmitá), 0.04 a 0.045 (diverguje)' },
+  { calc: 'sd', topic: 'Optimalizácia 2D', src: 'P5', name: 'Steepest descent: f = (x − y)/(x² + y² + 2), P₀ = (−3, −2)', v: { f: '(x - y)/(x^2 + y^2 + 2)', p0: '-3; -2', nrm: 'n', eps: '1e-4', n: '30', gm: '' }, ans: '∇f = (9/225, −19/225), S₀ = (−0.4280, 0.9037). Presné minimum na priamke: γ = 3.2926, P₁ = (−4.4095, 0.9756). Minimum f je (−1, 1), f = −0.5' },
+  { calc: 'sd', topic: 'Optimalizácia 2D', src: 'P5', name: 'Steepest descent: to isté s γ z prednášky (4.8186, 2.7708)', v: { f: '(x - y)/(x^2 + y^2 + 2)', p0: '-3; -2', nrm: 'n', eps: '1e-4', n: '2', gm: '4.8186 2.7708' }, ans: 'P₁ = (−5.0628, 2.3548), S₁ = (0.9991, −0.0418). Pozor: γ = 4.8186 v prednáške nie je minimum φ (to je 3.2926)' },
+  { calc: 'sd', topic: 'Optimalizácia 2D', src: 'CV4', name: 'Steepest descent: f = x² + 2y², P₀ = (2, 2)', v: { f: 'x^2 + 2y^2', p0: '2; 2', nrm: 'n', eps: '1e-4', n: '30' }, ans: 'minimum (0, 0)' },
+  { calc: 'n2', topic: 'Optimalizácia 2D', src: 'CV4', name: 'Newton 2D: f = x² + 2y², X₀ = (2, 2)', v: { f: 'x^2 + 2y^2', p0: '2; 2', eps: '1e-3', n: '50' }, ans: 'H = diag(2, 4), H⁻¹ = diag(0.5, 0.25) → X₁ = (0, 0)' },
+  { calc: 'n2', topic: 'Optimalizácia 2D', src: 'CV4', name: 'Newton 2D: f = x⁴/4 + x²/2 + y²/2, A₀ = (1, 1)', v: { f: 'x^4/4 + x^2/2 + y^2/2', p0: '1; 1', eps: '1e-3', n: '50' }, ans: '∇f = (2, 1), H = diag(4, 1), Δ = (−0.5, −1) → A₁ = (0.5, 0)' },
+  { calc: 'n2', topic: 'Optimalizácia 2D', src: 'CV4 slide', name: 'Newton 2D: f = (x + 2)² + (y − 1)² + 0.5xy, X₀ = (3, −2)', v: { f: '(x + 2)^2 + (y - 1)^2 + 0.5x*y', p0: '3; -2', eps: '1e-3', n: '50' }, ans: '1 iterácia → (−2.4, 1.6), f = −1.4' },
+  { calc: 'nm', topic: 'Optimalizácia 2D', src: 'P4', name: 'Nelder–Mead (prednáška): f = x² − 4x + y² − y − xy, (0,0), (1.2,0), (0,0.8)', v: { f: 'x^2 - 4x + y^2 - y - x*y', v: 'p', A: '0; 0', B: '1.2; 0', Cc: '0; 0.8', eps: '1e-3', n: '200', coef: '1 2 0.5 0.5' }, ans: 'M = (0.6, 0.4), R = (1.2, 0.8), f(R) = −4.48, E = (1.8, 1.2), f(E) = −5.88 → W ← E; min (3, 2), f = −7' },
+  { calc: 'nm', topic: 'Optimalizácia 2D', src: 'CV4', name: 'Nelder–Mead (cvičenie): f = x² − 4x + y² − y − xy, V = (0,1), (1,1), (0,1.5)', v: { f: 'x^2 - 4x + y^2 - y - x*y', v: 'cv', A: '0; 1', B: '1; 1', Cc: '0; 1.5', eps: '1e-3', n: '200', coef: '1 2 0.5 0.5' }, ans: 'min (3, 2), f = −7' },
+  { calc: 'nm', topic: 'Optimalizácia 2D', src: 'CV4', name: 'Nelder–Mead: f = x² + 2y², A(2,2), B(2,1), C(1,2)', v: { f: 'x^2 + 2y^2', v: 'cv', A: '2; 2', B: '2; 1', Cc: '1; 2', eps: '1e-3', n: '200', coef: '1 2 0.5 0.5' }, ans: 'it. 1: R = (1,1), f = 3 → E = (0.5,0.5), f = 0.75; it. 2: R = (1.5, −0.5), f = 2.75 → reflexia' },
+  { calc: 'pw', topic: 'Optimalizácia 2D', src: 'CV5', name: 'Powell: Booth, P₀ = (0, 0)', v: { f: '(x + 2y - 7)^2 + (2x + y - 5)^2', p0: '0; 0', eps: '1e-3', n: '100' }, ans: 'minimum (1, 3)' },
+  { calc: 'pw', topic: 'Optimalizácia 2D', src: 'CV4/5', name: 'Powell: f = x² + 2y², P₀ = (2, 2)', v: { f: 'x^2 + 2y^2', p0: '2; 2', eps: '1e-3', n: '100' }, ans: 'minimum (0, 0) hneď v 1. iterácii (osi sú konjugované)' },
+  { calc: 'pw', topic: 'Optimalizácia 2D', src: 'P4', name: 'Powell: f = x² − 4x + y² − y − xy, P₀ = (0, 0)', v: { f: 'x^2 - 4x + y^2 - y - x*y', p0: '0; 0', eps: '1e-3', n: '100' }, ans: 'minimum (3, 2), f = −7' },
+  ...Object.entries(TESTF).map(([k, t]) => ({ calc: 'cmp', topic: 'Optimalizácia 2D', src: 'CV5 Ú1', name: `Porovnanie metód: ${t[0]} ${t[1]}, štart (${t[2]})`, v: { tf: k, f: t[1], p0: t[2], min: t[3], stop: 'x', tol: '1e-3', a: k === 'rosenbrock' ? '0.001' : (k === 'pretiahnuta' || k === 'beale' || k === 'himmelblau') ? '0.01' : '0.1', h: '0.5', n: '20000' }, ans: `X* = ${t[3].split('|')[0].trim()}` })),
+  // --- Neurónové siete
+  { calc: 'mp', topic: 'Neurónové siete', src: 'P6, CV6', name: 'McCulloch–Pitts AND: w = (1, 1), θ = 2', v: { fn: 'AND', data: logicText('AND'), w: '1 1', th: '2', search: 'th' }, ans: 'funguje' },
+  { calc: 'mp', topic: 'Neurónové siete', src: 'CV6', name: 'McCulloch–Pitts OR: w = (1, 1), θ = 1', v: { fn: 'OR', data: logicText('OR'), w: '1 1', th: '1', search: 'th' }, ans: 'funguje' },
+  { calc: 'mp', topic: 'Neurónové siete', src: 'P6 úloha', name: 'Úloha: OR pri θ = 2 (nájdi váhy)', v: { fn: 'OR', data: logicText('OR'), w: '2 2', th: '2', search: 'th' }, ans: 'w = (2, 2), θ = 2' },
+  { calc: 'mp', topic: 'Neurónové siete', src: 'P6 úloha', name: 'Úloha: AND NOT pri θ = 2', v: { fn: 'ANDNOT', data: logicText('ANDNOT'), w: '2 -1', th: '2', search: 'th' }, ans: 'w = (2, −1), θ = 2' },
+  { calc: 'mp', topic: 'Neurónové siete', src: 'P6 úloha', name: 'Úloha: XOR pri θ = 2 (nejde)', v: { fn: 'XOR', data: logicText('XOR'), w: '1 1', th: '2', search: 'th' }, ans: 'neexistuje, XOR nie je lineárne separabilný' },
+  { calc: 'hebb', topic: 'Neurónové siete', src: 'P6', name: 'Hebb AND binárne (neurón sa nenaučí)', v: { data: '1 1 | 1\n1 0 | 0\n0 1 | 0\n0 0 | 0', w0: '0 0', b0: '0', ep: '1', act: 'auto' }, ans: 'w = (1, 1), b = 1 a ďalej sa nemení → zlyhá' },
+  { calc: 'hebb', topic: 'Neurónové siete', src: 'P6', name: 'Hebb AND bipolárne', v: { data: '1 1 | 1\n1 -1 | -1\n-1 1 | -1\n-1 -1 | -1', w0: '0 0', b0: '0', ep: '1', act: 'auto' }, ans: 'w = (2, 2), b = −2 → x₂ = 1 − x₁' },
+  { calc: 'hebb', topic: 'Neurónové siete', src: 'P8', name: 'Hebb AND binárne vstupy, bipolárny cieľ', v: { data: '1 1 | 1\n1 0 | -1\n0 1 | -1\n0 0 | -1', w0: '0 0', b0: '0', ep: '1', act: 'auto' }, ans: 'w = (0, 0), b = −2 → zlyhá' },
+  { calc: 'perc', topic: 'Neurónové siete', src: 'CV6', name: 'Perceptrón AND (binárne vstupy, bipolárny cieľ), α = 1', v: { data: '1 1 | 1\n1 0 | -1\n0 1 | -1\n0 0 | -1', var: 'cv', a: '1', th: '0', w0: '0 0', b0: '0', ep: '10' }, ans: 'E1 → (w₁, w₂, b) = (−2, 0, −2); naučí sa po 8 epochách: w = (2, 4), b = −6' },
+  { calc: 'perc', topic: 'Neurónové siete', src: 'CV6', name: 'Perceptrón OR (binárne vstupy, bipolárny cieľ), α = 1', v: { data: '1 1 | 1\n1 0 | 1\n0 1 | 1\n0 0 | -1', var: 'cv', a: '1', th: '0', w0: '0 0', b0: '0', ep: '10' }, ans: 'E1 končí (w₁, w₂, b) = (0, 0, −2) → ďalej' },
+  { calc: 'perc', topic: 'Neurónové siete', src: 'CV6', name: 'Perceptrón XOR (nenaučí sa)', v: { data: '1 1 | -1\n1 0 | 1\n0 1 | 1\n0 0 | -1', var: 'cv', a: '1', th: '0', w0: '0 0', b0: '0', ep: '6' }, ans: 'po E1 späť (0, 0, 0) → nenaučí sa' },
+  { calc: 'perc', topic: 'Neurónové siete', src: 'CV6', name: 'Perceptrón: hlasovanie 3 ľudí (aspoň 2 z 3), α = 1', v: { data: '1 1 1 | 1\n1 1 0 | 1\n1 0 1 | 1\n0 1 1 | 1\n1 0 0 | -1\n0 1 0 | -1\n0 0 1 | -1\n0 0 0 | -1', var: 'cv', a: '1', th: '0', w0: '0 0 0', b0: '0', ep: '20' }, ans: 'E1 končí (−2, 0, 0, −2) …' },
+  { calc: 'perc', topic: 'Neurónové siete', src: 'P7 DÚ', name: 'Perceptrón (prednáška/Fausett): AND bipolárne, α = 1, θ = 0.2', v: { data: '1 1 | 1\n1 -1 | -1\n-1 1 | -1\n-1 -1 | -1', var: 'fa', a: '1', th: '0.2', w0: '0 0', b0: '0', ep: '10' }, ans: 'DÚ: 2 epochy ručne, potom vplyv α' },
+  { calc: 'perc', topic: 'Neurónové siete', src: 'P7 DÚ', name: 'Perceptrón (Fausett): AND binárne vstupy, bipolárny cieľ, α = 1, θ = 0.2', v: { data: '1 1 | 1\n1 0 | -1\n0 1 | -1\n0 0 | -1', var: 'fa', a: '1', th: '0.2', w0: '0 0', b0: '0', ep: '15' }, ans: 'Fausett: konverguje po 10 epochách' },
+  { calc: 'ada', topic: 'Neurónové siete', src: 'P7', name: 'ADALINE AND (binárne x, bipolárny t), α = 0.2, w = 0, b = 1', v: { data: '1 1 | 1\n1 0 | -1\n0 1 | -1\n0 0 | -1', a: '0.2', w0: '0 0', b0: '1', ep: '2', tol: '0' }, ans: 'E1: (1, 0, 0) → b = 0.6, w₁ = −0.4 → w₂ = −0.32, b = 0.28 → b = 0.024; E₂ = 1.44, E₃ = 0.9216' },
+  { calc: 'ada', topic: 'Neurónové siete', src: 'CV7', name: 'ADALINE AND bipolárne, α = 0.1', v: { data: '1 1 | 1\n1 -1 | -1\n-1 1 | -1\n-1 -1 | -1', a: '0.1', w0: '0 0', b0: '0', ep: '2', tol: '0' }, ans: 'E1 → (0.1779, 0.1559, −0.1979); E2 → (0.2885, 0.2571, −0.3178)' },
+  { calc: 'ada', topic: 'Neurónové siete', src: 'CV7', name: 'ADALINE OR bipolárne, α = 0.1', v: { data: '1 1 | 1\n1 -1 | 1\n-1 1 | 1\n-1 -1 | -1', a: '0.1', w0: '0 0', b0: '0', ep: '2', tol: '0' }, ans: 'E1 → (0.1999, 0.2179, 0.1801); E2 → (0.3243, 0.3511, 0.2956)' },
+  { calc: 'ada', topic: 'Neurónové siete', src: 'CV8', name: 'ADALINE s α = 0.45 (z príkladu 1 o learning rate)', v: { data: '1 0 | -1\n0 1 | 1\n1 1 | 1', a: '0.45', w0: '0 0', b0: '0', ep: '1', tol: '0' }, ans: 'p1: Δw = (−0.45, 0, −0.45); p2: (−0.45, 0.653, 0.203); p3: net = 0.405' },
+  { calc: 'mad', topic: 'Neurónové siete', src: 'CV7', name: 'MADALINE MRI: OR, v = (1, 1), b = 0.5, α = 0.1, d = 0.1', v: { data: '-1 -1 | -1\n-1 1 | 1\n1 -1 | 1\n1 1 | 1', a: '0.1', d: '0.1', h1: '0 0 0', h2: '0 0 0', v: '1 1 0.5', ep: '1' }, ans: '① w₁₁ = w₁₂ = 0.01, b = −0.01 (oba); ② h₁: (−0.001, 0.021, 0.001); ③ h₂: (0.021, −0.001, 0.001)' },
+  { calc: 'lr', topic: 'Neurónové siete', src: 'P8', name: 'Learning rate: AND binárne vstupy (P = 4)', v: { data: '1 1\n1 0\n0 1\n0 0', bias: false }, ans: 'R = [½ ¼; ¼ ½], λ = ¾, ¼ → α < 0.375' },
+  { calc: 'lr', topic: 'Neurónové siete', src: 'CV8 Pr1', name: 'Learning rate: (1,0), (0,1), (1,1)', v: { data: '1 0\n0 1\n1 1', bias: false }, ans: 'R = [⅔ ⅓; ⅓ ⅔], λ = 1, ⅓ → α < 0.5, batch α < 2' },
+  { calc: 'lr', topic: 'Neurónové siete', src: 'CV8 Pr2', name: 'Learning rate: AND bipolárne', v: { data: '1 1\n1 -1\n-1 1\n-1 -1', bias: false }, ans: 'R = I, λ = 1, 1 → α < 0.5, batch α < 2' },
+  { calc: 'lr', topic: 'Neurónové siete', src: 'CV8 Pr3', name: 'Learning rate: (1,1,0), (1,0,1), (0,1,1)', v: { data: '1 1 0\n1 0 1\n0 1 1', bias: false }, ans: 'λ = 4/3, 1/3, 1/3 → α < 2/3 (½·4/3), batch α < 1.5' },
+  { calc: 'am', topic: 'Neurónové siete', src: 'P8', name: 'Asociatívna pamäť: 4 vstupy → 2 výstupy (binárne)', v: { data: '1 0 0 0 | 1 0\n1 1 0 0 | 1 0\n0 0 0 1 | 0 1\n0 0 1 1 | 0 1', test: '1 0 0 0\n1 1 0 0', act: 'bin', cols: '0', names: '' }, ans: 'W = [2 0; 1 0; 0 1; 0 2]; (1,0,0,0)·W = (2, 0) → (1, 0)' },
+  { calc: 'am', topic: 'Neurónové siete', src: 'CV8 Pr1', name: 'Asociatívna pamäť: mačka / psík (mňauká, šteká, má chvost)', v: { data: '1 -1 1 | 1 -1\n-1 1 1 | -1 1', test: '1 -1 -1\n-1 1 1\n1 0 0\n1 1 1', act: 'sign', cols: '0', names: 'mačka psík' }, ans: 'W = [2 −2; −2 2; 0 0]; (1,1,1) → 0, 0 → nevie sa rozhodnúť' },
+  { calc: 'am', topic: 'Neurónové siete', src: 'CV8 Pr2', name: 'Asociatívna pamäť: písmená T, L, H (3×5 pixelov)', v: {
+      data: '1 1 1 -1 1 -1 -1 1 -1 -1 1 -1 -1 1 -1 | 1 -1 -1\n1 -1 -1 1 -1 -1 1 -1 -1 1 -1 -1 1 1 1 | -1 1 -1\n1 -1 1 1 -1 1 1 1 1 1 -1 1 1 -1 1 | -1 -1 1',
+      test: '-1 1 1 -1 1 -1 -1 -1 -1 -1 1 -1 -1 1 -1\n1 -1 -1 1 -1 -1 1 -1 -1 1 -1 -1 1 0 0\n1 1 1 1 1 1 1 1 1 1 -1 1 1 -1 1\n1 -1 1 1 -1 1 1 -1 1 1 -1 1 1 1 1',
+      act: 'sign', cols: '3', names: 'T L H' }, ans: 'T̂ = [29 −3 −19; −21 15 −5; −15 −7 17; −27 5 13] → T, L, H, U = „aj L aj H“' },
+];
+
+/* ============================================================
+   UI
+   ============================================================ */
+function fieldHTML(key, f) {
+  const id = `${key}-${f.id}`, cls = `fld ${f.cls || ''} ${f.type === 'check' ? 'chk' : ''}`;
+  if (f.type === 'area') return `<div class="${cls}"><label for="${id}">${f.label}</label><textarea id="${id}" spellcheck="false">${esc(f.def)}</textarea></div>`;
+  if (f.type === 'select') return `<div class="${cls}"><label for="${id}">${f.label}</label><select id="${id}">${f.opts.map(([v, t]) => `<option value="${v}" ${v === f.def ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
+  if (f.type === 'check') return `<div class="${cls}"><input type="checkbox" id="${id}" ${f.def ? 'checked' : ''}><label for="${id}">${f.label}</label></div>`;
+  return `<div class="${cls}"><label for="${id}">${f.label}</label><input type="text" id="${id}" value="${esc(f.def)}" spellcheck="false" autocomplete="off"></div>`;
+}
+function getVals(key) {
+  const o = {};
+  CALCS[key].fields.forEach(f => { const el = document.getElementById(`${key}-${f.id}`); o[f.id] = f.type === 'check' ? el.checked : el.value; });
+  return o;
+}
+function setVal(key, id, val) {
+  const el = document.getElementById(`${key}-${id}`); if (!el) return;
+  if (el.type === 'checkbox') el.checked = !!val; else el.value = val;
+}
+function updateSym(key) {
+  const c = CALCS[key]; if (!c.fn) return;
+  const el = document.getElementById(`${key}-sym`);
+  try { const F = compileFn(document.getElementById(`${key}-f`).value, c.fn); el.innerHTML = symHTML(F); }
+  catch (e) { el.innerHTML = `<span class="tag bad">${esc(e.message)}</span>`; }
+}
+const lastMode = {};
+function runCalc(key, mode) {
+  const out = document.getElementById(`${key}-out`);
+  lastMode[key] = mode;
+  try {
+    const r = CALCS[key].run(getVals(key), mode);
+    if (typeof r === 'string') out.innerHTML = r; else { out.innerHTML = r.html; r.after && requestAnimationFrame(r.after); }
+  } catch (e) { out.innerHTML = `<div class="err">Chyba: ${esc(e.message)}</div>`; console.error(e); }
+}
+function loadPreset(idx, run = true) {
+  const p = PRESETS[idx]; if (!p) return;
+  Object.entries(p.v).forEach(([k, v]) => setVal(p.calc, k, v));
+  const sel = document.getElementById(`${p.calc}-preset`); if (sel) sel.value = String(idx);
+  updateSym(p.calc);
+  if (run) runCalc(p.calc);
+}
+function renderCalc(key) {
+  const c = CALCS[key], host = document.getElementById('calc-' + key);
+  const ps = PRESETS.map((p, i) => [p, i]).filter(([p]) => p.calc === key);
+  host.innerHTML = `
+    <div class="calc-head"><div><h3>${c.title}</h3><p class="sub">${c.sub || ''}</p></div>
+      ${ps.length ? `<label class="preset">Načítať príklad<select id="${key}-preset"><option value="">vlastné zadanie</option>${ps.map(([p, i]) => `<option value="${i}">[${p.src}] ${esc(p.name)}</option>`).join('')}</select></label>` : ''}
+    </div>
+    ${c.formula ? `<div class="formula">${c.formula}</div>` : ''}
+    <div class="fields">${c.fields.map(f => fieldHTML(key, f)).join('')}</div>
+    <div class="sym" id="${key}-sym"></div>
+    <div class="actions"><button class="btn primary" data-run="${key}">Vypočítaj</button>${c.extra || ''}<button class="btn" data-clear="${key}">Vymazať výstup</button></div>
+    <div class="out" id="${key}-out"></div>`;
+  host.querySelector('[data-run]').addEventListener('click', () => runCalc(key));
+  host.querySelector('[data-clear]').addEventListener('click', () => { document.getElementById(`${key}-out`).innerHTML = ''; });
+  const sel = document.getElementById(`${key}-preset`);
+  if (sel) sel.addEventListener('change', () => sel.value !== '' && loadPreset(+sel.value));
+  if (c.fn) { const f = document.getElementById(`${key}-f`); let t; f.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => updateSym(key), 250); }); updateSym(key); }
+  host.querySelectorAll('input[type=text]').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') runCalc(key); }));
+  c.init && c.init(key);
+}
+function renderExamples() {
+  const topics = [...new Set(PRESETS.map(p => p.topic))];
+  const titles = { g1: 'Gradient 1D', n1: 'Newton 1D', q1: 'Kvadr. aproximácia', g2: 'Gradient 2D', sd: 'Steepest descent', n2: 'Newton 2D', nm: 'Nelder–Mead', pw: 'Powell', cmp: 'Porovnanie', mp: 'McCulloch–Pitts', hebb: 'Hebb', perc: 'Perceptrón', ada: 'ADALINE', mad: 'MADALINE', lr: 'Learning rate', am: 'Asoc. pamäť' };
+  document.getElementById('exList').innerHTML = topics.map(tp => `<div class="grp-title">${tp}</div><div class="ex-scroll"><table class="ex-table"><thead><tr><th>Zdroj</th><th>Metóda</th><th>Zadanie</th><th>Kontrola</th><th></th></tr></thead><tbody>${
+    PRESETS.map((p, i) => [p, i]).filter(([p]) => p.topic === tp).map(([p, i]) => `<tr><td class="src">${p.src}</td><td style="white-space:nowrap;font-weight:600">${titles[p.calc]}</td><td>${esc(p.name)}</td><td><span class="ans">${esc(p.ans || '')}</span></td><td><button class="btn sm" data-open="${i}">Otvoriť ▸</button></td></tr>`).join('')
+  }</tbody></table></div>`).join('');
+  document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.open; loadPreset(i);
+    document.getElementById('calc-' + PRESETS[i].calc).scrollIntoView({ behavior: 'smooth' });
+  }));
+}
+function rerunAll() { Object.keys(CALCS).forEach(k => { const o = document.getElementById(`${k}-out`); if (o && o.innerHTML.trim()) runCalc(k, lastMode[k]); }); }
+
+document.addEventListener('DOMContentLoaded', () => {
+  Object.keys(CALCS).forEach(renderCalc);
+  renderExamples();
+  document.getElementById('dec').addEventListener('change', e => { S.dec = +e.target.value; rerunAll(); });
+  const tb = document.getElementById('themeBtn');
+  try { const t = localStorage.getItem('mathai-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) { }
+  tb.addEventListener('click', () => {
+    const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const nx = cur === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = nx;
+    try { localStorage.setItem('mathai-theme', nx); } catch (e) { }
+    rerunAll();
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Optimalizačné metódy</title>
+<style>
+:root {
+  --bg: #f5f6f8; --panel: #ffffff; --panel-2: #f0f2f5; --line: #dde1e7;
+  --text: #1c2330; --muted: #5d6778; --accent: #1f3b63; --accent-text: #ffffff;
+  --ok: #1d7a4f; --ok-bg: #e3f4ea; --bad: #b4372b; --bad-bg: #fbe6e3; --warn: #8a5a00; --warn-bg: #fdf1d6;
+  --c-grad: #2f6fdf; --c-newton: #e0663a; --c-nm: #16936b; --c-powell: #8b4fd8;
+  --heat-lo: #ffffff; --heat-hi: #8b98ad; --heat-line: rgba(30,40,60,.28);
+  --mark: #1c2330;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151b; --panel: #1a1f27; --panel-2: #222833; --line: #2e3542;
+    --text: #e4e8ef; --muted: #98a2b3; --accent: #7fa6dc; --accent-text: #0e1420;
+    --ok: #5fcf95; --ok-bg: #173226; --bad: #f08a7e; --bad-bg: #3a1d1a; --warn: #f0c060; --warn-bg: #3a2f14;
+    --c-grad: #6aa0ff; --c-newton: #ff8a5c; --c-nm: #3fcf9c; --c-powell: #b48cff;
+    --heat-lo: #151a22; --heat-hi: #6c7a91; --heat-line: rgba(220,230,245,.22);
+    --mark: #f2f4f8;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151b; --panel: #1a1f27; --panel-2: #222833; --line: #2e3542;
+  --text: #e4e8ef; --muted: #98a2b3; --accent: #7fa6dc; --accent-text: #0e1420;
+  --ok: #5fcf95; --ok-bg: #173226; --bad: #f08a7e; --bad-bg: #3a1d1a; --warn: #f0c060; --warn-bg: #3a2f14;
+  --c-grad: #6aa0ff; --c-newton: #ff8a5c; --c-nm: #3fcf9c; --c-powell: #b48cff;
+  --heat-lo: #151a22; --heat-hi: #6c7a91; --heat-line: rgba(220,230,245,.22);
+  --mark: #f2f4f8;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { padding: 18px 24px 0; max-width: 1400px; margin: 0 auto; }
+header .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+header h1 { margin: 2px 0 12px; font-size: 24px; color: var(--accent); }
+nav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+nav button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted);
+  padding: 9px 14px; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
+nav button.on { color: var(--accent); border-bottom-color: var(--accent); }
+main { max-width: 1400px; margin: 0 auto; padding: 20px 24px 60px; }
+.tab { display: none; } .tab.on { display: block; }
+.layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } header, main { padding-left: 16px; padding-right: 16px; } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.panel + .panel { margin-top: 16px; }
+.panel h2 { margin: 0 0 12px; font-size: 15px; }
+.panel h2 small { font-weight: 400; color: var(--muted); }
+label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin: 10px 0 4px; }
+input[type=text], select, textarea { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--panel-2); color: var(--text); font: 14px var(--mono); }
+textarea { resize: vertical; min-height: 54px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.checks label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); font-weight: 500; margin: 6px 0; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 6px; padding: 9px 16px;
+  background: var(--accent); color: var(--accent-text); font: inherit; font-weight: 600; cursor: pointer; }
+.btn:disabled { opacity: .55; cursor: progress; }
+.btn.ghost { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); font-weight: 500; padding: 6px 10px; font-size: 13px; }
+.btn.full { width: 100%; margin-top: 14px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.hint { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
+.hint code, p code { font-family: var(--mono); background: var(--panel-2); padding: 0 4px; border-radius: 3px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; border-top: 3px solid var(--c); }
+.card .name { font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.card .big { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; margin: 4px 0; }
+.card dl { margin: 6px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; font-size: 13px; }
+.card dt { color: var(--muted); } .card dd { margin: 0; font-family: var(--mono); font-size: 12.5px; text-align: right; overflow-wrap: anywhere; }
+.chip { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 99px; }
+.chip.ok { color: var(--ok); background: var(--ok-bg); } .chip.bad { color: var(--bad); background: var(--bad-bg); }
+.chip.warn { color: var(--warn); background: var(--warn-bg); }
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+@media (max-width: 1150px) { .charts { grid-template-columns: 1fr; } }
+.chartwrap { position: relative; }
+canvas { width: 100%; display: block; }
+canvas.line { aspect-ratio: 16 / 10; } canvas.contour { aspect-ratio: 16 / 12; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; margin-top: 6px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  padding: 6px 9px; font: 12px var(--mono); box-shadow: 0 4px 14px rgba(0,0,0,.12); display: none; white-space: nowrap; z-index: 2; }
+.vline { position: absolute; width: 1px; background: var(--muted); opacity: .5; pointer-events: none; display: none; }
+.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.toolbar h2 { margin: 0; flex: 1; }
+.toolbar select { width: auto; font-family: inherit; padding: 4px 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { border: 1px solid var(--line); padding: 6px 9px; text-align: center; }
+th { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+td:first-child, th:first-child { text-align: left; }
+td.num { font-variant-numeric: tabular-nums; }
+td .sub { display: block; font-size: 11.5px; color: var(--muted); font-family: var(--mono); }
+td.best { background: var(--ok-bg); font-weight: 700; }
+td.fail { color: var(--bad); font-weight: 700; }
+tbody tr:nth-child(even) td:not(.best) { background: color-mix(in srgb, var(--panel-2) 60%, transparent); }
+.scroll { overflow: auto; max-height: 460px; border: 1px solid var(--line); border-radius: 6px; }
+.scroll table { font: 12.5px var(--mono); } .scroll th { position: sticky; top: 0; }
+.scroll td, .scroll th { border-width: 0 0 1px; text-align: right; } .scroll td:first-child { text-align: right; color: var(--muted); }
+.tablewrap { overflow-x: auto; }
+.copyline { display: flex; gap: 8px; align-items: center; margin-top: 12px; font: 13px var(--mono);
+  background: var(--panel-2); border-radius: 6px; padding: 8px 10px; }
+.copyline span { flex: 1; overflow-wrap: anywhere; }
+.notes { margin: 14px 0 0; padding-left: 18px; } .notes li { margin: 4px 0; }
+.empty { color: var(--muted); padding: 40px 0; text-align: center; }
+.err { color: var(--bad); background: var(--bad-bg); border-radius: 6px; padding: 8px 10px; margin-top: 10px; font-size: 13px; display: none; }
+.taskhead { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 14px; }
+.taskhead > div { min-width: 120px; }
+.taskhead label { margin-top: 0; }
+.taskdesc { color: var(--muted); margin: 0 0 14px; max-width: 900px; }
+.theory { background: var(--panel-2); border-radius: 8px; padding: 10px 14px; margin-top: 14px; font-size: 14px; }
+.theory b { color: var(--accent); }
+.edit { width: 96px !important; text-align: center; padding: 3px 5px !important; }
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">Optimalizačné metódy · Cvičenie 5</div>
+  <h1>Porovnanie optimalizačných metód v 2D</h1>
+  <nav id="nav">
+    <button data-tab="exp" class="on">Experiment</button>
+    <button data-tab="u1">Úloha 1</button>
+    <button data-tab="u2">Úloha 2</button>
+    <button data-tab="u3">Úloha 3</button>
+    <button data-tab="u4">Úloha 4</button>
+    <button data-tab="u5">Úloha 5</button>
+  </nav>
+</header>
+
+<main>
+<!-- ================= EXPERIMENT ================= -->
+<section class="tab on" id="tab-exp">
+  <div class="layout">
+    <form class="panel" id="form-exp">
+      <h2>Nastavenie</h2>
+      <label for="e-fn">Funkcia</label>
+      <select id="e-fn"></select>
+      <div id="e-vlastna" style="display:none">
+        <label for="e-vyraz">f(x, y) =</label>
+        <textarea id="e-vyraz" spellcheck="false">abs(x) + abs(y)</textarea>
+        <label for="e-minima">Minimá x* <small>(viac oddeľ čiarkou)</small></label>
+        <input type="text" id="e-minima" value="(0; 0)">
+        <p class="hint">Mocnina <code>x**2</code> alebo <code>x^2</code>, ďalej <code>abs sin cos exp sqrt</code>.</p>
+      </div>
+      <p class="hint" id="e-fninfo"></p>
+      <div class="row2">
+        <div><label for="e-sx">Štart x₀</label><input type="text" id="e-sx"></div>
+        <div><label for="e-sy">Štart y₀</label><input type="text" id="e-sy"></div>
+      </div>
+      <div class="row2">
+        <div><label for="e-tol">TOL</label><input type="text" id="e-tol" value="1e-3"></div>
+        <div><label for="e-maxit">Max iterácií</label><input type="text" id="e-maxit" value="20000"></div>
+      </div>
+      <div class="row2">
+        <div><label for="e-alfa">α (gradientná)</label><input type="text" id="e-alfa" value="0.01"></div>
+        <div><label for="e-h">h (simplex NM)</label><input type="text" id="e-h" value="0.5"></div>
+      </div>
+      <label>Metódy</label>
+      <div class="checks" id="e-metody"></div>
+      <button class="btn full" id="e-run" type="submit">Spustiť</button>
+      <div class="presets">
+        <button type="button" class="btn ghost" id="p-u5">Úloha 5: Rosenbrock, TOL 10⁻⁸</button>
+        <button type="button" class="btn ghost" id="p-u6">Úloha 6: |x| + |y|</button>
+      </div>
+      <div class="err" id="e-err"></div>
+    </form>
+
+    <div id="e-out">
+      <div class="panel empty" id="e-empty">Vyber funkciu a stlač <b>Spustiť</b>.</div>
+      <div id="e-res" style="display:none">
+        <div class="cards" id="e-cards"></div>
+        <div class="copyline"><span id="e-copy"></span><button class="btn ghost" data-copy="e-copy">Kopírovať</button></div>
+        <div class="charts">
+          <div class="panel">
+            <div class="toolbar">
+              <h2>Vzdialenosť od minima ‖xₖ − x*‖ <small>(log)</small></h2>
+              <select id="e-logx"><option value="0">os k lineárna</option><option value="1">os k logaritmická</option></select>
+            </div>
+            <div class="chartwrap"><canvas class="line" id="c-conv"></canvas><div class="vline"></div><div class="tip"></div></div>
+            <div class="legend" id="l-conv"></div>
+          </div>
+          <div class="panel">
+            <div class="toolbar"><h2>Vrstevnice a cesty metód</h2></div>
+            <div class="chartwrap"><canvas class="contour" id="c-cont"></canvas><div class="tip"></div></div>
+            <div class="legend" id="l-cont"></div>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:16px">
+          <div class="toolbar">
+            <h2>Výpis iterácií</h2>
+            <select id="e-logsel"></select>
+          </div>
+          <div class="scroll"><table id="e-log"></table></div>
+          <p class="hint" id="e-loghint"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ULOHA 1 ================= -->
+<section class="tab" id="tab-u1">
+  <div class="panel">
+    <h2>Úloha 1 · Základné porovnanie metód</h2>
+    <p class="taskdesc">Všetky štyri metódy na všetkých 7 funkciách zo štartu z tabuľky. Zelená bunka je najlepšia v riadku. Pod číslom iterácií je počet vyhodnotení: <b>f</b> funkcie, <b>∇</b> gradientu, <b>H</b> Hessovej matice.</p>
+    <div class="taskhead">
+      <div><label for="u1-tol">TOL</label><input type="text" id="u1-tol" value="1e-3"></div>
+      <div><label for="u1-alfa">α (gradientná)</label><input type="text" id="u1-alfa" value="0.01"></div>
+      <div><label for="u1-h">h (NM)</label><input type="text" id="u1-h" value="0.5"></div>
+      <div><label for="u1-eval">Vyhodnotenia počítať</label>
+        <select id="u1-eval"><option value="all">f + ∇f + H</option><option value="f">len f</option></select></div>
+      <button class="btn" id="u1-run">Spustiť Úlohu 1</button>
+    </div>
+    <div class="tablewrap" id="u1-out"><div class="empty">Stlač <b>Spustiť Úlohu 1</b>.</div></div>
+    <div id="u1-notes"></div>
+  </div>
+</section>
+
+<!-- ================= ULOHA 2 ================= -->
+<section class="tab" id="tab-u2">
+  <div class="panel">
+    <h2>Úloha 2 · Vplyv štartovacieho bodu</h2>
+    <p class="taskdesc">Štarty sú predvyplnené podľa formulára v zadaní a dajú sa prepísať. Pri Himmelblauovej funkcii je za lomkou minimum, do ktorého metóda dobehla.</p>
+    <div class="taskhead">
+      <div><label for="u2-tol">TOL</label><input type="text" id="u2-tol" value="1e-3"></div>
+      <div><label for="u2-alfa">α (gradientná)</label><input type="text" id="u2-alfa" value="0.01"></div>
+      <div><label for="u2-h">h (NM)</label><input type="text" id="u2-h" value="0.5"></div>
+      <button class="btn" id="u2-run">Spustiť Úlohu 2</button>
+    </div>
+    <div class="tablewrap"><table id="u2-table"></table></div>
+    <div id="u2-notes"></div>
+  </div>
+</section>
+
+<!-- ================= ULOHA 3 ================= -->
+<section class="tab" id="tab-u3">
+  <div class="panel">
+    <h2>Úloha 3 · Dĺžka kroku α pri gradientnej metóde</h2>
+    <p class="taskdesc">f = x² + 25y², štart (3; 1). Správanie je „konverguje“, „konverguje, kmitá“ (keď sa smer kroku často otáča), „kmitá“ (nedosiahne TOL, ale ani neutečie) alebo „diverguje“.</p>
+    <div class="taskhead">
+      <div style="flex:1; min-width:280px"><label for="u3-alfy">Hodnoty α (oddelené medzerou)</label>
+        <input type="text" id="u3-alfy" value="0,005 0,01 0,02 0,03 0,035 0,039 0,040 0,045"></div>
+      <div><label for="u3-tol">TOL</label><input type="text" id="u3-tol" value="1e-3"></div>
+      <button class="btn" id="u3-run">Spustiť Úlohu 3</button>
+    </div>
+    <div class="tablewrap"><table id="u3-table"></table></div>
+    <div class="panel" style="margin-top:16px; padding:12px" id="u3-chartpanel" hidden>
+      <div class="toolbar"><h2>‖xₖ − x*‖ pre rôzne α</h2>
+        <select id="u3-logx"><option value="1">os k logaritmická</option><option value="0">os k lineárna</option></select></div>
+      <div class="chartwrap"><canvas class="line" id="c-u3" style="aspect-ratio: 16/7"></canvas><div class="vline"></div><div class="tip"></div></div>
+      <div class="legend" id="l-u3"></div>
+    </div>
+    <div class="theory">
+      <b>Pomôcka k b):</b> Hessova matica sú druhé parciálne derivácie:
+      H = [[∂²f/∂x², ∂²f/∂x∂y], [∂²f/∂y∂x, ∂²f/∂y²]]. Pri kvadratickej funkcii je konštantná a jej vlastné čísla
+      sú pri diagonálnej matici priamo čísla na diagonále. Gradientná metóda s pevným krokom konverguje práve vtedy, keď
+      |1 − α·λᵢ| &lt; 1 pre všetky λᵢ, teda α &lt; 2 / λ<sub>max</sub>. Porovnaj to s tým, pri ktorom α to v tabuľke prestane konvergovať.
+    </div>
+  </div>
+</section>
+
+<!-- ================= ULOHA 4 ================= -->
+<section class="tab" id="tab-u4">
+  <div class="panel">
+    <h2>Úloha 4 · Požadovaná presnosť a rýchlosť konvergencie</h2>
+    <p class="taskdesc">Rosenbrock zo štartu (−1,2; 1). Malé <b>+N</b> pod číslom ukazuje, o koľko iterácií viac metóda potrebovala oproti predchádzajúcemu TOL, teda na 2 ďalšie platné číslice.</p>
+    <div class="taskhead">
+      <div style="flex:1; min-width:220px"><label for="u4-tols">Hodnoty TOL</label>
+        <input type="text" id="u4-tols" value="1e-2 1e-4 1e-6 1e-8"></div>
+      <div><label for="u4-alfa">α (gradientná)</label><input type="text" id="u4-alfa" value="0.001"></div>
+      <div><label for="u4-h">h (NM)</label><input type="text" id="u4-h" value="0.5"></div>
+      <button class="btn" id="u4-run">Spustiť Úlohu 4</button>
+      <button class="btn ghost" id="u4-graf">Graf pre Úlohu 5 →</button>
+    </div>
+    <div class="tablewrap"><table id="u4-table"></table></div>
+    <p class="hint">Pri Rosenbrockovi gradientná metóda s α = 0,01 diverguje, preto je tu predvolene α = 0,001. Skús obe hodnoty.</p>
+  </div>
+</section>
+<!-- ================= ULOHA 5 ================= -->
+<section class="tab" id="tab-u5">
+  <div class="panel">
+    <h2>Úloha 5 · Graf konvergencie (Rosenbrock)</h2>
+    <p class="taskdesc">‖xₖ − x*‖ podľa iterácie pre všetky štyri metódy, os y je logaritmická. Gradientná metóda pri α = 0,01 diverguje, preto je predvolené α = 0,001. Aby bolo vidieť rozdiel medzi lineárnou a kvadratickou konvergenciou, metódy bežia až do TOL = 10⁻⁸.</p>
+    <div class="taskhead">
+      <div><label for="u5-start">Štart</label><input type="text" id="u5-start" value="−1,2; 1"></div>
+      <div><label for="u5-tol">TOL</label><input type="text" id="u5-tol" value="1e-8"></div>
+      <div><label for="u5-alfa">α (gradientná)</label><input type="text" id="u5-alfa" value="0.001"></div>
+      <div><label for="u5-maxit">Max iterácií</label><input type="text" id="u5-maxit" value="50000"></div>
+      <button class="btn" id="u5-run">Nakresliť graf</button>
+    </div>
+    <div id="u5-res" hidden>
+      <div class="toolbar">
+        <h2 style="flex:1"></h2>
+        <select id="u5-pohlad">
+          <option value="log">celý priebeh, os k logaritmická</option>
+          <option value="150">prvých 150 iterácií</option>
+          <option value="lin">celý priebeh, os k lineárna</option>
+        </select>
+        <button class="btn ghost" id="u5-png">Uložiť PNG (svetlý)</button>
+      </div>
+      <div class="chartwrap"><canvas class="line" id="c-u5" style="aspect-ratio: 16/9"></canvas><div class="vline"></div><div class="tip"></div></div>
+      <div class="tablewrap" style="margin-top:14px"><table id="u5-table"></table></div>
+      <div class="theory"><b>Ako čítať graf:</b> pri logaritmickej osi y znamená <b>priamka</b>, že sa chyba v každom kroku zmenší rovnakým pomerom, čo je lineárna konvergencia. Krivka, ktorá sa na konci <b>láme strmo dole</b>, znamená, že sa počet presných číslic v každom kroku približne zdvojnásobí, čo je kvadratická konvergencia.</div>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+const METODY = [
+  { kluc: "gradientna",  nazov: "Gradientná",  css: "--c-grad" },
+  { kluc: "newton",      nazov: "Newtonova",   css: "--c-newton" },
+  { kluc: "nelder_mead", nazov: "Nelder–Mead", css: "--c-nm" },
+  { kluc: "powell",      nazov: "Powell",      css: "--c-powell" },
+];
+const PODLA_NAZVU = { "Gradientna": 0, "Newton": 1, "Nelder-Mead": 2, "Powell": 3 };
+let FUNKCIE = [];
+const $ = id => document.getElementById(id);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const farba = i => css(METODY[i].css);
+
+// ---------- pomocne ----------
+const num = s => { const v = parseFloat(String(s).trim().replace(",", ".")); if (!isFinite(v)) throw new Error(`„${s}“ nie je číslo`); return v; };
+const zoznam = s => String(s).trim().split(/[\s;]+/).filter(Boolean).map(num);
+function fmt(v, d = 6) {
+  if (v == null) return "∞";
+  const a = Math.abs(v);
+  if (a !== 0 && (a >= 1e6 || a < 1e-4)) return v.toExponential(3);
+  return v.toFixed(d);
+}
+const sk = (v, d = 3) => v == null ? "∞" : (Math.abs(v) >= 1e6 ? v.toExponential(2) : String(+v.toFixed(d))).replace(".", ",").replace(/-/g, "−");
+const bodSk = (p, d = 3) => p ? `(${sk(p[0], d)}; ${sk(p[1], d)})` : "—";
+const sup = n => String(n).split("").map(c => "⁻⁰¹²³⁴⁵⁶⁷⁸⁹"["-0123456789".indexOf(c)]).join("");
+const tolText = t => { const e = Math.log10(t); return Number.isInteger(e) ? `10${sup(e)}` : String(t); };
+
+async function api(payload) {
+  const r = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  const j = await r.json();
+  if (j.chyba) throw new Error(j.chyba);
+  return j;
+}
+async function busy(btn, fn) {
+  const t = btn.textContent; btn.disabled = true; btn.textContent = "Počítam…";
+  try { await fn(); } catch (e) { alert(e.message); } finally { btn.disabled = false; btn.textContent = t; }
+}
+function evals(r, mode) { return mode === "f" ? r.pocet_f : r.pocet_f + r.pocet_grad + r.pocet_hess; }
+function stav(r) {
+  if (r.konvergoval) return `<span class="chip ok">konvergoval</span>`;
+  return `<span class="chip bad">X · ${r.poznamka}</span>`;
+}
+
+// ---------- kreslenie ----------
+function priprav(canvas) {
+  const r = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+  const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, r.width, r.height);
+  ctx.font = "11px system-ui, sans-serif";
+  return { ctx, W: r.width, H: r.height };
+}
+function ticks(a, b, n = 6) {
+  const s0 = (b - a) / n, p = 10 ** Math.floor(Math.log10(s0));
+  const s = [1, 2, 5, 10].find(m => m * p >= s0) * p, out = [];
+  for (let v = Math.ceil(a / s) * s; v <= b + s * 1e-9; v += s) out.push(+v.toFixed(10));
+  return out;
+}
+
+function kresliLinie(canvas, series, o = {}) {
+  const { ctx, W, H } = priprav(canvas);
+  if (o.bg) { ctx.fillStyle = o.bg; ctx.fillRect(0, 0, W, H); }
+  const pad = { l: o.ylabel ? 70 : 52, r: 14, t: o.title ? 40 : 10, b: 32 }, pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+  let maxK = 1, ymin = Infinity, ymax = -Infinity;
+  if (o.maxK) series = series.map(s => ({ ...s, data: s.data.slice(0, o.maxK + 1) }));
+  for (const s of series) {
+    maxK = Math.max(maxK, s.data.length - 1);
+    for (const v of s.data) if (v > 0 && isFinite(v)) { ymin = Math.min(ymin, v); ymax = Math.max(ymax, v); }
+  }
+  if (o.tol) { ymin = Math.min(ymin, o.tol); ymax = Math.max(ymax, o.tol); }
+  if (!isFinite(ymin)) { ymin = 1e-3; ymax = 1; }
+  ymin = Math.max(ymin, 1e-16); ymax = Math.min(ymax, 1e8);
+  let lo = Math.floor(Math.log10(ymin)), hi = Math.ceil(Math.log10(ymax)); if (hi <= lo) hi = lo + 1;
+  const logX = o.logX;
+  const X = k => pad.l + (logX ? Math.log10(k + 1) / Math.log10(maxK + 1) : k / maxK) * pw;
+  const Y = v => {
+    const l = v == null || !isFinite(v) ? hi : Math.log10(Math.max(v, 10 ** lo));
+    return pad.t + (hi - Math.min(l, hi)) / (hi - lo) * ph;
+  };
+  const muted = css("--muted"), line = css("--line");
+  ctx.strokeStyle = line; ctx.fillStyle = muted; ctx.lineWidth = 1;
+  const krokE = Math.max(1, Math.ceil((hi - lo) / 8));
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (let e = lo; e <= hi; e += krokE) {
+    const y = Y(10 ** e); ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    ctx.fillText(`10${sup(e)}`, pad.l - 6, y);
+  }
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  const xt = logX ? [0, ...[1, 10, 100, 1000, 10000, 100000].filter(k => k <= maxK)] : ticks(0, maxK, 6).filter(k => Number.isInteger(k));
+  for (const k of xt) { const x = X(k); ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, H - pad.b); ctx.stroke(); ctx.fillText(k, x, H - pad.b + 5); }
+  ctx.fillText("iterácia k", pad.l + pw / 2, H - 13);
+  if (o.ylabel) {
+    ctx.save(); ctx.translate(16, pad.t + ph / 2); ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(o.ylabel, 0, 0); ctx.restore();
+  }
+  if (o.title) {
+    ctx.save(); ctx.fillStyle = css("--text"); ctx.font = "600 15px system-ui, sans-serif";
+    ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(o.title, pad.l, 20); ctx.restore();
+  }
+  if (o.tol) {
+    ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = muted;
+    ctx.beginPath(); ctx.moveTo(pad.l, Y(o.tol)); ctx.lineTo(W - pad.r, Y(o.tol)); ctx.stroke(); ctx.restore();
+    ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText(`TOL = ${tolText(o.tol)}`, pad.l + 4, Y(o.tol) - 2);
+  }
+  ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t - 2, pw, ph + 4); ctx.clip();
+  for (const s of series) {
+    ctx.strokeStyle = s.color; ctx.fillStyle = s.color; ctx.lineWidth = 2; ctx.lineJoin = "round";
+    ctx.beginPath(); s.data.forEach((v, k) => k ? ctx.lineTo(X(k), Y(v)) : ctx.moveTo(X(k), Y(v))); ctx.stroke();
+    if (s.data.length <= 80) s.data.forEach((v, k) => { ctx.beginPath(); ctx.arc(X(k), Y(v), 2.6, 0, 7); ctx.fill(); });
+  }
+  ctx.restore();
+  if (o.legend) {
+    ctx.save(); ctx.font = "12.5px system-ui, sans-serif";
+    const lw = Math.max(...series.map(s => ctx.measureText(s.name).width)) + 34, lh = 20;
+    const lx = W - pad.r - lw - 8, ly = pad.t + 8;
+    ctx.fillStyle = css("--panel"); ctx.strokeStyle = css("--line");
+    ctx.fillRect(lx, ly, lw, lh * series.length + 8); ctx.strokeRect(lx, ly, lw, lh * series.length + 8);
+    series.forEach((s, i) => {
+      const y = ly + 4 + lh * i + lh / 2;
+      ctx.strokeStyle = s.color; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(lx + 8, y); ctx.lineTo(lx + 24, y); ctx.stroke();
+      ctx.fillStyle = css("--text"); ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(s.name, lx + 30, y);
+    });
+    ctx.restore();
+  }
+  canvas._hover = { X, Y, pad, pw, W, H, maxK, logX, series };
+}
+
+function hoverLinie(canvas) {
+  const wrap = canvas.parentElement, tip = wrap.querySelector(".tip"), vl = wrap.querySelector(".vline");
+  canvas.addEventListener("mousemove", ev => {
+    const h = canvas._hover; if (!h) return;
+    const r = canvas.getBoundingClientRect(), mx = ev.clientX - r.left;
+    const fr = Math.min(1, Math.max(0, (mx - h.pad.l) / h.pw));
+    const k = Math.round(h.logX ? 10 ** (fr * Math.log10(h.maxK + 1)) - 1 : fr * h.maxK);
+    const rows = h.series.filter(s => k < s.data.length)
+      .map(s => `<div><span class="dot" style="background:${s.color}"></span> ${s.name}: ${fmt(s.data[k], 8)}</div>`);
+    if (!rows.length) { tip.style.display = vl.style.display = "none"; return; }
+    tip.innerHTML = `<b>k = ${k}</b>${rows.join("")}`;
+    const x = h.X(k);
+    vl.style.cssText = `display:block; left:${x}px; top:${h.pad.t}px; height:${h.H - h.pad.t - h.pad.b}px`;
+    tip.style.display = "block";
+    const tw = tip.offsetWidth;
+    tip.style.left = (x + 12 + tw > r.width ? x - tw - 12 : x + 12) + "px";
+    tip.style.top = Math.max(0, ev.clientY - r.top - 20) + "px";
+  });
+  canvas.addEventListener("mouseleave", () => { tip.style.display = vl.style.display = "none"; });
+}
+
+function hex2rgb(c) {
+  const ctx = document.createElement("canvas").getContext("2d"); ctx.fillStyle = c; c = ctx.fillStyle;
+  if (c.startsWith("#")) return [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+  return c.match(/[\d.]+/g).slice(0, 3).map(Number);
+}
+
+function kresliVrstevnice(canvas, data) {
+  const { ctx, W, H } = priprav(canvas);
+  const m = data.mriezka, n = m.n;
+  const pad = { l: 46, r: 12, t: 10, b: 30 }, pw = Math.floor(W - pad.l - pad.r), ph = Math.floor(H - pad.t - pad.b);
+  let zmin = Infinity, zmax = -Infinity;
+  for (const row of m.z) for (const v of row) if (v != null) { zmin = Math.min(zmin, v); zmax = Math.max(zmax, v); }
+  const sc = Math.max((zmax - zmin) * 1e-4, 1e-12), tmax = Math.log1p((zmax - zmin) / sc);
+  const T = v => v == null ? 1 : Math.log1p((v - zmin) / sc) / tmax;
+  const PASY = 18, lo = hex2rgb(css("--heat-lo")), hiC = hex2rgb(css("--heat-hi")), ln = hex2rgb(css("--heat-line"));
+  const lnA = parseFloat((css("--heat-line").match(/[\d.]+\)$/) || ["0.3"])[0]);
+  const off = document.createElement("canvas"); off.width = pw; off.height = ph;
+  const octx = off.getContext("2d"), img = octx.createImageData(pw, ph);
+  const band = new Int16Array(pw * ph);
+  for (let py = 0; py < ph; py++) for (let px = 0; px < pw; px++) {
+    const gx = px / (pw - 1) * (n - 1), gy = (1 - py / (ph - 1)) * (n - 1);
+    const i = Math.min(n - 2, Math.floor(gx)), j = Math.min(n - 2, Math.floor(gy)), fx = gx - i, fy = gy - j;
+    const t = T(m.z[j][i]) * (1 - fx) * (1 - fy) + T(m.z[j][i + 1]) * fx * (1 - fy) + T(m.z[j + 1][i]) * (1 - fx) * fy + T(m.z[j + 1][i + 1]) * fx * fy;
+    band[py * pw + px] = Math.min(PASY - 1, Math.floor(t * PASY));
+  }
+  for (let p = 0; p < pw * ph; p++) {
+    const b = band[p], t = b / (PASY - 1);
+    let c = lo.map((v, k) => v + (hiC[k] - v) * t);
+    const px = p % pw;
+    if ((px + 1 < pw && band[p + 1] !== b) || (p + pw < pw * ph && band[p + pw] !== b)) c = c.map((v, k) => v + (ln[k] - v) * lnA * 2);
+    img.data.set([c[0], c[1], c[2], 255], p * 4);
+  }
+  octx.putImageData(img, 0, 0);
+  ctx.drawImage(off, pad.l, pad.t, pw, ph);
+
+  const X = x => pad.l + (x - m.x0) / (m.x1 - m.x0) * pw, Y = y => pad.t + (1 - (y - m.y0) / (m.y1 - m.y0)) * ph;
+  const muted = css("--muted"), mark = css("--mark");
+  ctx.fillStyle = muted; ctx.strokeStyle = css("--line"); ctx.textAlign = "center"; ctx.textBaseline = "top";
+  for (const v of ticks(m.x0, m.x1, 6)) ctx.fillText(+v.toFixed(4), X(v), H - pad.b + 5);
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (const v of ticks(m.y0, m.y1, 6)) ctx.fillText(+v.toFixed(4), pad.l - 6, Y(v));
+  ctx.strokeRect(pad.l, pad.t, pw, ph);
+
+  ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
+  const ok = p => p[0] != null && p[1] != null && Math.abs(p[0]) < 1e6 && Math.abs(p[1]) < 1e6;
+  for (const r of data.vysledky) {
+    const c = farba(PODLA_NAZVU[r.metoda]), pts = r.cesta.filter(ok);
+    ctx.strokeStyle = c; ctx.fillStyle = c; ctx.lineWidth = 2; ctx.lineJoin = "round";
+    ctx.beginPath(); pts.forEach((p, k) => k ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1]))); ctx.stroke();
+    if (pts.length <= 120) pts.forEach(p => { ctx.beginPath(); ctx.arc(X(p[0]), Y(p[1]), 2.4, 0, 7); ctx.fill(); });
+    const e = pts[pts.length - 1];
+    if (e) { ctx.beginPath(); ctx.arc(X(e[0]), Y(e[1]), 5, 0, 7); ctx.fill(); ctx.strokeStyle = css("--panel"); ctx.lineWidth = 1.5; ctx.stroke(); }
+  }
+  ctx.strokeStyle = mark; ctx.lineWidth = 2;
+  for (const mn of data.funkcia.minima) {
+    const x = X(mn[0]), y = Y(mn[1]);
+    ctx.beginPath(); ctx.moveTo(x - 6, y - 6); ctx.lineTo(x + 6, y + 6); ctx.moveTo(x + 6, y - 6); ctx.lineTo(x - 6, y + 6); ctx.stroke();
+  }
+  const s = data.start;
+  ctx.beginPath(); ctx.arc(X(s[0]), Y(s[1]), 6, 0, 7); ctx.stroke();
+  ctx.restore();
+
+  const tip = canvas.parentElement.querySelector(".tip");
+  canvas.onmousemove = ev => {
+    const r = canvas.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
+    if (mx < pad.l || mx > pad.l + pw || my < pad.t || my > pad.t + ph) { tip.style.display = "none"; return; }
+    const x = m.x0 + (mx - pad.l) / pw * (m.x1 - m.x0), y = m.y0 + (1 - (my - pad.t) / ph) * (m.y1 - m.y0);
+    tip.textContent = `x = ${x.toFixed(3)}, y = ${y.toFixed(3)}`;
+    tip.style.display = "block"; tip.style.left = (mx + 12) + "px"; tip.style.top = (my + 8) + "px";
+  };
+  canvas.onmouseleave = () => tip.style.display = "none";
+}
+
+function legenda(el, polozky) {
+  el.innerHTML = polozky.map(([n, c, tvar]) =>
+    `<span>${tvar ? tvar : `<span class="dot" style="background:${c}"></span>`}${n}</span>`).join("");
+}
+
+// ---------- taby ----------
+document.querySelectorAll("#nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#nav button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.id === "tab-" + b.dataset.tab));
+  prekresli();
+});
+document.addEventListener("click", e => {
+  const id = e.target.dataset?.copy; if (!id) return;
+  navigator.clipboard.writeText($(id).textContent);
+  e.target.textContent = "Skopírované"; setTimeout(() => e.target.textContent = "Kopírovať", 1200);
+});
+
+// ---------- EXPERIMENT ----------
+let posledny = null;
+function nastavFunkciu() {
+  const k = $("e-fn").value, vl = k === "vlastna";
+  $("e-vlastna").style.display = vl ? "" : "none";
+  if (vl) { $("e-fninfo").textContent = ""; return; }
+  const f = FUNKCIE.find(f => f.kluc === k);
+  $("e-sx").value = f.start[0]; $("e-sy").value = f.start[1];
+  $("e-fninfo").innerHTML = `f = <code>${f.vyraz}</code><br>x* = ${f.minima.map(m => bodSk(m)).join(", ")}`;
+}
+function parseMinima(s) {
+  const out = [...s.matchAll(/\(\s*([^;()]+?)\s*;\s*([^;()]+?)\s*\)/g)].map(m => [num(m[1]), num(m[2])]);
+  if (!out.length) throw new Error("Minimá zadaj ako (x; y), napr. (0; 0)");
+  return out;
+}
+
+async function spustiExperiment() {
+  $("e-err").style.display = "none";
+  try {
+    const k = $("e-fn").value;
+    const p = {
+      funkcia: k, start: [num($("e-sx").value), num($("e-sy").value)],
+      tol: num($("e-tol").value), alfa: num($("e-alfa").value), h: num($("e-h").value), max_it: Math.round(num($("e-maxit").value)),
+      metody: METODY.map(m => m.kluc).filter(m => $("chk-" + m).checked), mriezka: true,
+    };
+    if (!p.metody.length) throw new Error("Vyber aspoň jednu metódu");
+    if (k === "vlastna") { p.vyraz = $("e-vyraz").value; p.minima = parseMinima($("e-minima").value); }
+    await busy($("e-run"), async () => { posledny = await api(p); posledny.tol = p.tol; zobrazExperiment(); });
+  } catch (e) { $("e-err").textContent = e.message; $("e-err").style.display = "block"; }
+}
+
+function zobrazExperiment() {
+  const d = posledny; if (!d) return;
+  $("e-empty").style.display = "none"; $("e-res").style.display = "";
+  $("e-cards").innerHTML = d.vysledky.map(r => {
+    const i = PODLA_NAZVU[r.metoda];
+    return `<div class="card" style="--c:${farba(i)}">
+      <div class="name"><span class="dot" style="background:${farba(i)}"></span>${METODY[i].nazov}</div>
+      <div class="big">${r.do_tabulky}</div>${stav(r)}
+      <dl>
+        <dt>iterácie</dt><dd>${r.iteracie}</dd>
+        <dt>vyhodn. f</dt><dd>${r.pocet_f}</dd>
+        <dt>vyhodn. ∇f</dt><dd>${r.pocet_grad}</dd>
+        <dt>vyhodn. H</dt><dd>${r.pocet_hess}</dd>
+        <dt>x</dt><dd>(${fmt(r.x[0])}, ${fmt(r.x[1])})</dd>
+        <dt>f(x)</dt><dd>${fmt(r.f_x, 8)}</dd>
+        <dt>minimum</dt><dd>${bodSk(r.minimum)}</dd>
+      </dl></div>`;
+  }).join("");
+  $("e-copy").textContent = `${d.funkcia.nazov}, štart ${bodSk(d.start)}, TOL ${tolText(d.tol)}: ` +
+    d.vysledky.map(r => `${METODY[PODLA_NAZVU[r.metoda]].nazov} ${r.do_tabulky}`).join(" | ");
+  $("e-logsel").innerHTML = d.vysledky.map((r, i) => `<option value="${i}">${METODY[PODLA_NAZVU[r.metoda]].nazov}</option>`).join("");
+  zobrazLog();
+  prekresliExperiment();
+}
+function prekresliExperiment() {
+  const d = posledny; if (!d || !$("tab-exp").classList.contains("on")) return;
+  const ser = d.vysledky.map(r => ({ name: METODY[PODLA_NAZVU[r.metoda]].nazov, color: farba(PODLA_NAZVU[r.metoda]), data: r.vzdialenosti }));
+  kresliLinie($("c-conv"), ser, { tol: d.tol, logX: $("e-logx").value === "1" });
+  legenda($("l-conv"), ser.map(s => [s.name, s.color]));
+  kresliVrstevnice($("c-cont"), d);
+  legenda($("l-cont"), [...ser.map(s => [s.name, s.color]), ["štart", null, "○ "], ["minimum x*", null, "✕ "], ["koniec", null, "● "]]);
+}
+function zobrazLog() {
+  const r = posledny.vysledky[$("e-logsel").value];
+  let html = "<tr><th>k</th><th>x</th><th>y</th><th>f(x, y)</th><th>‖xₖ − x*‖</th></tr>";
+  let pred = -1;
+  for (const [k, x, y, f, dd] of r.log) {
+    if (k !== pred + 1) html += `<tr><td colspan="5" style="text-align:center">⋯</td></tr>`;
+    html += `<tr><td>${k}</td><td>${fmt(x)}</td><td>${fmt(y)}</td><td>${fmt(f, 8)}</td><td>${fmt(dd, 8)}</td></tr>`;
+    pred = k;
+  }
+  $("e-log").innerHTML = html;
+  $("e-loghint").textContent = r.log_skrateny ? "Zobrazených je prvých 300 a posledných 20 iterácií." : "";
+}
+
+$("form-exp").onsubmit = e => { e.preventDefault(); spustiExperiment(); };
+$("e-fn").onchange = nastavFunkciu;
+$("e-logsel").onchange = zobrazLog;
+$("e-logx").onchange = prekresliExperiment;
+$("p-u5").onclick = () => { $("e-fn").value = "rosenbrock"; nastavFunkciu(); $("e-tol").value = "1e-8"; $("e-alfa").value = "0.001"; spustiExperiment(); };
+$("p-u6").onclick = () => {
+  $("e-fn").value = "vlastna"; nastavFunkciu();
+  $("e-vyraz").value = "abs(x) + abs(y)"; $("e-minima").value = "(0; 0)";
+  $("e-sx").value = "2"; $("e-sy").value = "1.5"; $("e-tol").value = "1e-3"; $("e-alfa").value = "0.01";
+  spustiExperiment();
+};
+
+// ---------- ULOHA 1 ----------
+let u1data = null;
+$("u1-run").onclick = () => busy($("u1-run"), async () => {
+  const p = { tol: num($("u1-tol").value), alfa: num($("u1-alfa").value), h: num($("u1-h").value), bez_detailov: true };
+  u1data = [];
+  for (const f of FUNKCIE) {
+    $("u1-run").textContent = `Počítam ${f.nazov}…`;
+    u1data.push(await api({ ...p, funkcia: f.kluc }));
+  }
+  zobrazU1();
+});
+$("u1-eval").onchange = () => u1data && zobrazU1();
+function najlepsie(vys, kluc) {
+  const ok = vys.filter(r => r.konvergoval);
+  if (!ok.length) return [];
+  const mn = Math.min(...ok.map(kluc));
+  return ok.filter(r => kluc(r) === mn);
+}
+function zobrazU1() {
+  const mode = $("u1-eval").value, ev = r => evals(r, mode);
+  let html = `<table><thead><tr><th>Funkcia</th>${METODY.map(m => `<th>${m.nazov}<br><small>iterácie</small></th>`).join("")}
+    <th>Najmenej iterácií</th><th>Najmenej vyhodnotení</th></tr></thead><tbody>`;
+  const pozn = { newton1: [], rozdiel: [], zlyhania: [] };
+  for (const d of u1data) {
+    const v = d.vysledky, bi = najlepsie(v, r => r.iteracie), be = najlepsie(v, ev);
+    html += `<tr><td>${d.funkcia.nazov}</td>` + v.map(r => {
+      const cls = !r.konvergoval ? "fail" : bi.includes(r) ? "best" : "";
+      return `<td class="num ${cls}">${r.do_tabulky}<span class="sub">${r.konvergoval ? "" : r.poznamka + " · "}f ${r.pocet_f} · ∇ ${r.pocet_grad} · H ${r.pocet_hess}</span></td>`;
+    }).join("");
+    const meno = rs => rs.map(r => METODY[PODLA_NAZVU[r.metoda]].nazov).join(" / ");
+    html += `<td>${meno(bi)}</td><td>${meno(be)} <span class="sub">${be[0] ? ev(be[0]) + " vyhodn." : ""}</span></td></tr>`;
+    if (v[1].konvergoval && v[1].iteracie === 1) pozn.newton1.push(d.funkcia.nazov);
+    if (be.length && !be.some(r => bi.includes(r))) pozn.rozdiel.push(`${d.funkcia.nazov}: najmenej iterácií má ${meno(bi)} (${bi[0].iteracie} it, ${ev(bi[0])} vyhodn.), ale najmenej vyhodnotení ${meno(be)} (${be[0].iteracie} it, ${ev(be[0])} vyhodn.)`);
+    v.filter(r => !r.konvergoval).forEach(r => pozn.zlyhania.push(`${d.funkcia.nazov} – ${METODY[PODLA_NAZVU[r.metoda]].nazov}: ${r.poznamka}, skončila v ${bodSk(r.x)}`));
+  }
+  $("u1-out").innerHTML = html + "</tbody></table>";
+  $("u1-notes").innerHTML = `<div class="theory"><b>Postrehy z merania</b> (podklad pre odpovede a–c):
+    <ul class="notes">
+      <li><b>a)</b> Newton za 1 krok: ${pozn.newton1.join(", ") || "žiadna"}. Pozri sa na tvar týchto funkcií, aký majú najvyšší stupeň?</li>
+      <li><b>b)</b> ${pozn.rozdiel.length ? pozn.rozdiel.join("<br>") : "Vo všetkých riadkoch je to tá istá metóda."}</li>
+      <li><b>c)</b> ${pozn.zlyhania.length ? pozn.zlyhania.join("<br>") : "Žiadna metóda nezlyhala."}</li>
+    </ul>
+    <p class="hint">Bod, kde metóda skončila, si môžeš pozrieť na grafe vrstevníc v záložke Experiment.</p></div>`;
+}
+
+// ---------- ULOHA 2 ----------
+const U2 = [["rosenbrock", "−1,2; 1"], ["rosenbrock", "2; 2"], ["rosenbrock", "−2; −1"],
+            ["himmelblau", "0; 0"], ["himmelblau", "−1; 1"], ["himmelblau", "−4; 0"]];
+function tabU2(vys = []) {
+  let html = `<thead><tr><th>Funkcia</th><th>Štart x₀</th>${METODY.map(m => `<th>${m.nazov}</th>`).join("")}</tr></thead><tbody>`;
+  U2.forEach(([f, s], i) => {
+    const fn = FUNKCIE.find(x => x.kluc === f), d = vys[i];
+    html += `<tr><td>${i % 3 === 0 ? fn.nazov : ""}</td><td><input type="text" class="edit" id="u2-s${i}" value="${s}"></td>`;
+    html += METODY.map((m, j) => {
+      if (!d) return "<td></td>";
+      const r = d.vysledky[j], cel = f === "himmelblau" && r.konvergoval ? `${r.iteracie} / ${bodSk(r.minimum)}` : r.do_tabulky;
+      return `<td class="num ${r.konvergoval ? "" : "fail"}">${cel}<span class="sub">${r.konvergoval ? `f ${r.pocet_f} · ∇ ${r.pocet_grad}` : r.poznamka}</span></td>`;
+    }).join("") + "</tr>";
+  });
+  $("u2-table").innerHTML = html + "</tbody>";
+}
+$("u2-run").onclick = () => busy($("u2-run"), async () => {
+  const p = { tol: num($("u2-tol").value), alfa: num($("u2-alfa").value), h: num($("u2-h").value), bez_detailov: true };
+  const starty = U2.map((_, i) => { const t = $("u2-s" + i).value.replace(/−/g, "-").split(";"); return [num(t[0]), num(t[1])]; });
+  const vys = [];
+  for (let i = 0; i < U2.length; i++) {
+    U2[i][1] = $("u2-s" + i).value;
+    vys.push(await api({ ...p, funkcia: U2[i][0], start: starty[i] }));
+  }
+  tabU2(vys);
+  const riadky = METODY.map((m, j) => {
+    const cast = ["rosenbrock", "himmelblau"].map(f => {
+      const its = vys.filter((_, i) => U2[i][0] === f).map(d => d.vysledky[j]).map(r => r.konvergoval ? r.iteracie : "X");
+      return `${f === "rosenbrock" ? "Rosenbrock" : "Himmelblau"}: ${its.join(", ")}`;
+    });
+    return `<li><b>${m.nazov}</b>: ${cast.join(" · ")}</li>`;
+  });
+  $("u2-notes").innerHTML = `<div class="theory"><b>Rozptyl iterácií podľa štartu</b> (podklad pre a):<ul class="notes">${riadky.join("")}</ul></div>`;
+});
+
+// ---------- ULOHA 3 ----------
+let u3data = null;
+$("u3-run").onclick = () => busy($("u3-run"), async () => {
+  const alfy = zoznam($("u3-alfy").value), tol = num($("u3-tol").value);
+  const vys = [];
+  for (const a of alfy) vys.push((await api({ funkcia: "pretiahnuta", start: [3, 1], tol, alfa: a, metody: ["gradientna"] })).vysledky[0]);
+  u3data = { alfy, vys, tol };
+  const spr = r => r.poznamka === "diverguje" ? ["diverguje", "bad"]
+    : !r.konvergoval ? ["kmitá", "warn"]
+    : r.kmitanie > 0.3 ? ["konverguje, kmitá", "ok"] : ["konverguje", "ok"];
+  $("u3-table").innerHTML = `<tr><th>α</th>${alfy.map(a => `<th>${sk(a, 4)}</th>`).join("")}</tr>
+    <tr><td>Iterácie</td>${vys.map(r => `<td class="num ${r.konvergoval ? "" : "fail"}">${r.do_tabulky}</td>`).join("")}</tr>
+    <tr><td>Správanie</td>${vys.map(r => { const [t, c] = spr(r); return `<td><span class="chip ${c}">${t}</span></td>`; }).join("")}</tr>`;
+  $("u3-chartpanel").hidden = false;
+  prekresliU3();
+});
+$("u3-logx").onchange = () => prekresliU3();
+function prekresliU3() {
+  if (!u3data || !$("tab-u3").classList.contains("on")) return;
+  const n = u3data.alfy.length;
+  const ser = u3data.alfy.map((a, i) => ({ name: `α = ${sk(a, 4)}`, color: `hsl(${210 - i * 190 / Math.max(1, n - 1)} 70% 50%)`, data: u3data.vys[i].vzdialenosti }));
+  kresliLinie($("c-u3"), ser, { tol: u3data.tol, logX: $("u3-logx").value === "1" });
+  legenda($("l-u3"), ser.map(s => [s.name, s.color]));
+}
+
+// ---------- ULOHA 4 ----------
+$("u4-run").onclick = () => busy($("u4-run"), async () => {
+  const tols = zoznam($("u4-tols").value), p = { funkcia: "rosenbrock", start: [-1.2, 1], alfa: num($("u4-alfa").value), h: num($("u4-h").value), bez_detailov: true };
+  const vys = [];
+  for (const t of tols) vys.push(await api({ ...p, tol: t }));
+  let html = `<thead><tr><th>TOL</th>${METODY.map(m => `<th>${m.nazov}</th>`).join("")}</tr></thead><tbody>`;
+  vys.forEach((d, i) => {
+    html += `<tr><td>${tolText(tols[i])}</td>` + d.vysledky.map((r, j) => {
+      const pr = i ? vys[i - 1].vysledky[j] : null;
+      const delta = pr && pr.konvergoval && r.konvergoval ? `+${r.iteracie - pr.iteracie}` : "";
+      return `<td class="num ${r.konvergoval ? "" : "fail"}">${r.do_tabulky}<span class="sub">${r.konvergoval ? delta : r.poznamka}</span></td>`;
+    }).join("") + "</tr>";
+  });
+  $("u4-table").innerHTML = html + "</tbody>";
+});
+$("u4-graf").onclick = () => { document.querySelector('[data-tab="u5"]').click(); $("u5-run").click(); };
+
+// ---------- ULOHA 5 ----------
+let u5data = null;
+$("u5-run").onclick = () => busy($("u5-run"), async () => {
+  const t = $("u5-start").value.replace(/−/g, "-").split(";");
+  const d = await api({ funkcia: "rosenbrock", start: [num(t[0]), num(t[1])], tol: num($("u5-tol").value),
+    alfa: num($("u5-alfa").value), max_it: Math.round(num($("u5-maxit").value)), bez_detailov: true });
+  d.tol = num($("u5-tol").value); u5data = d;
+  $("u5-res").hidden = false;
+  $("u5-table").innerHTML = `<tr><th>Metóda</th><th>Iterácie</th><th>Koniec ‖xₖ − x*‖</th><th>Stav</th></tr>` +
+    d.vysledky.map(r => `<tr><td>${METODY[PODLA_NAZVU[r.metoda]].nazov}</td><td class="num">${r.iteracie}</td>
+      <td class="num">${fmt(r.vzdialenosti[r.vzdialenosti.length - 1], 10)}</td><td>${stav(r)}</td></tr>`).join("");
+  prekresliU5();
+});
+$("u5-pohlad").onchange = () => prekresliU5();
+function kresliU5(canvas, svetly) {
+  const d = u5data, v = $("u5-pohlad").value;
+  const ser = d.vysledky.map(r => ({ name: METODY[PODLA_NAZVU[r.metoda]].nazov, color: farba(PODLA_NAZVU[r.metoda]), data: r.vzdialenosti }));
+  kresliLinie(canvas, ser, {
+    tol: d.tol, logX: v === "log", maxK: v === "150" ? 150 : 0, legend: true,
+    title: `Rosenbrock, štart ${bodSk(d.start)}: vzdialenosť od minima`,
+    ylabel: "‖xₖ − x*‖ (log)", bg: svetly ? css("--panel") : null,
+  });
+}
+function prekresliU5() { if (u5data && $("tab-u5").classList.contains("on")) kresliU5($("c-u5")); }
+$("u5-png").onclick = async () => {
+  const root = document.documentElement, pred = root.getAttribute("data-theme");
+  root.setAttribute("data-theme", "light");
+  const c = document.createElement("canvas");
+  c.style.cssText = "position:fixed; left:-9999px; width:1100px; height:620px";
+  document.body.appendChild(c);
+  kresliU5(c, true);
+  const data = c.toDataURL("image/png"), nazov = "uloha5_" + { log: "log_k", lin: "linearne_k", 150: "prvych_150" }[$("u5-pohlad").value];
+  c.remove();
+  pred ? root.setAttribute("data-theme", pred) : root.removeAttribute("data-theme");
+  prekresliU5();
+  const r = await (await fetch("/api/ulozit", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nazov, data }) })).json();
+  $("u5-png").textContent = `Uložené: CV_5/${r.subor}`;
+  setTimeout(() => $("u5-png").textContent = "Uložiť PNG (svetlý)", 3000);
+};
+
+// ---------- start ----------
+function prekresli() { prekresliExperiment(); prekresliU3(); prekresliU5(); }
+let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(prekresli, 120); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", prekresli);
+hoverLinie($("c-conv")); hoverLinie($("c-u3")); hoverLinie($("c-u5"));
+
+(async () => {
+  FUNKCIE = await (await fetch("/api/funkcie")).json();
+  $("e-fn").innerHTML = FUNKCIE.map(f => `<option value="${f.kluc}">${f.nazov}</option>`).join("") + `<option value="vlastna">Vlastná funkcia…</option>`;
+  $("e-metody").innerHTML = METODY.map((m, i) =>
+    `<label><input type="checkbox" id="chk-${m.kluc}" checked><span class="dot" style="background:${farba(i)}"></span>${m.nazov}</label>`).join("");
+  nastavFunkciu();
+  tabU2();
+})();
+</script>
+</body>
+</html>
