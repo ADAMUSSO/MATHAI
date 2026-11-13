@@ -1,0 +1,344 @@
+<title>Optimalizácia krok za krokom</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap">
+<style>
+/* Layout: vlavo zadanie a pod nim listy so stvorcekovym papierom (vypocet ako v zosite),
+   vpravo prilepeny vysledok + graf vrstevnic, ktory ide s iteraciou, ktoru prave citas. */
+:root {
+  --bg: #eef2f8;
+  --sheet: #ffffff;
+  --ink: #1b2232;
+  --pencil: #556073;
+  --faint: #8792a6;
+  --line: #d8dfeb;
+  --grid: rgba(47, 84, 170, .075);
+  --pen: #2747c4;
+  --pen-soft: rgba(39, 71, 196, .09);
+  --red: #c22f3a;
+  --red-soft: rgba(194, 47, 58, .08);
+  --ok: #17774c;
+  --ok-soft: rgba(23, 119, 76, .1);
+  --amber: #a15c00;
+  --amber-soft: rgba(161, 92, 0, .1);
+  --plot-lo: #bccbf1;
+  --plot-hi: #fbfcfe;
+  --contour: rgba(36, 56, 112, .32);
+  --path-old: rgba(39, 71, 196, .42);
+  --ff-math: "STIX Two Text", "Cambria Math", "Cambria", "Times New Roman", serif;
+  --ff-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ff-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d121b; --sheet: #141b28; --ink: #e4e9f3; --pencil: #a3adc1; --faint: #76819a;
+    --line: #263046; --grid: rgba(140, 170, 240, .065); --pen: #92a8ff; --pen-soft: rgba(146, 168, 255, .12);
+    --red: #ff7d86; --red-soft: rgba(255, 125, 134, .1); --ok: #5ccf96; --ok-soft: rgba(92, 207, 150, .1);
+    --amber: #f2b552; --amber-soft: rgba(242, 181, 82, .1); --plot-lo: #283d72; --plot-hi: #131a26;
+    --contour: rgba(172, 192, 240, .33); --path-old: rgba(146, 168, 255, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d121b; --sheet: #141b28; --ink: #e4e9f3; --pencil: #a3adc1; --faint: #76819a;
+  --line: #263046; --grid: rgba(140, 170, 240, .065); --pen: #92a8ff; --pen-soft: rgba(146, 168, 255, .12);
+  --red: #ff7d86; --red-soft: rgba(255, 125, 134, .1); --ok: #5ccf96; --ok-soft: rgba(92, 207, 150, .1);
+  --amber: #f2b552; --amber-soft: rgba(242, 181, 82, .1); --plot-lo: #283d72; --plot-hi: #131a26;
+  --contour: rgba(172, 192, 240, .33); --path-old: rgba(146, 168, 255, .5); color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--ff-ui); font-size: 15px; line-height: 1.5; }
+.app { max-width: 1440px; margin: 0 auto; padding-block: 20px 60px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
+
+/* ---------- hlavicka ---------- */
+.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px 28px; margin-bottom: 18px; }
+.brand h1 { font-family: var(--ff-math); font-weight: 600; font-size: clamp(26px, 3.4vw, 38px); line-height: 1.1; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+.brand h1 em { font-weight: 400; color: var(--pen); }
+.brand p { margin: 6px 0 0; color: var(--pencil); max-width: 60ch; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--sheet); border: 1px solid var(--line); border-radius: 12px; }
+.tabs button { border: 0; background: transparent; padding: 7px 14px; border-radius: 8px; cursor: pointer; font-weight: 500; color: var(--pencil); white-space: nowrap; }
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { background: var(--pen); color: var(--sheet); }
+
+/* ---------- rozlozenie ---------- */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 46%); grid-template-areas: "in side" "sheets side"; gap: 18px 22px; align-items: start; }
+.inp { grid-area: in; min-width: 0; }
+.side { grid-area: side; min-width: 0; align-self: stretch; }
+.side-in { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); display: grid; gap: 12px; }
+.sheets { grid-area: sheets; min-width: 0; display: grid; gap: 14px; }
+@media (max-width: 920px) {
+  .layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "in" "side" "sheets"; }
+  .side-in { position: static; }
+}
+
+.card { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); }
+
+/* ---------- zadanie ---------- */
+.inp { padding: 18px; display: grid; gap: 16px; }
+.lab .m { text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 400; }
+.lab { display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--pencil); margin-bottom: 6px; }
+.fn-in { width: 100%; font-family: var(--ff-mono); font-size: 18px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.fn-in.bad, .num-in.bad { border-color: var(--red); background: var(--red-soft); }
+.keys { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.keys button { min-width: 40px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--sheet); cursor: pointer; font-family: var(--ff-math); font-size: 16px; line-height: 1.2; }
+.keys button:hover { border-color: var(--pen); color: var(--pen); }
+.preview { margin-top: 12px; padding: 14px 16px; border-radius: 8px; background: var(--pen-soft); font-size: 24px; overflow-x: auto; min-height: 62px; display: flex; align-items: center; }
+.preview .m { white-space: nowrap; }
+.preview.bad { background: var(--red-soft); }
+.err { margin-top: 8px; color: var(--red); font-size: 14px; }
+.err code { font-family: var(--ff-mono); background: var(--sheet); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; }
+.err mark { background: var(--red); color: var(--sheet); border-radius: 2px; padding: 0 1px; }
+.tip { margin: 8px 0 0; font-size: 13px; color: var(--pencil); }
+.tip code { font-family: var(--ff-mono); font-size: 12.5px; background: var(--bg); padding: 0 4px; border-radius: 4px; }
+.params { display: grid; gap: 14px; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: end; }
+.fld { display: grid; gap: 3px; }
+.fld > span { font-size: 13px; color: var(--pencil); }
+.fld > span .m { color: var(--ink); }
+.num-in { width: 92px; font-family: var(--ff-mono); font-size: 15px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); }
+.pt { display: flex; gap: 4px; align-items: center; font-family: var(--ff-math); font-size: 18px; color: var(--pencil); }
+.pt .num-in { width: 78px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg label { padding: 6px 11px; cursor: pointer; font-size: 14px; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label:has(input:checked) { background: var(--pen); color: var(--sheet); }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--pen); outline-offset: -2px; }
+.hint-s { font-size: 12.5px; color: var(--faint); margin: 4px 0 0; }
+select { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); max-width: 100%; }
+.exrow { display: grid; gap: 4px; }
+.exdesc { font-size: 13px; color: var(--amber); }
+
+/* ---------- vysledok + graf ---------- */
+.sum { padding: 14px 16px; display: grid; gap: 8px; }
+.sum-top { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; justify-content: space-between; }
+.sum-res { font-size: 20px; }
+.sum-res .lbl2 { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--pencil); display: block; }
+.sum-meta { color: var(--pencil); font-size: 14px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; letter-spacing: .04em; padding: 3px 9px; border-radius: 999px; background: var(--ok-soft); color: var(--ok); }
+.chip.red { background: var(--red-soft); color: var(--red); }
+.chip.amber { background: var(--amber-soft); color: var(--amber); }
+.chip.blue { background: var(--pen-soft); color: var(--pen); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.errbox { padding: 10px 12px; border-radius: 8px; background: var(--red-soft); color: var(--red); font-size: 14px; }
+.plotcard { padding: 10px 10px 12px; }
+.plotwrap { position: relative; width: 100%; }
+canvas#plot { display: block; width: 100%; border-radius: 6px; touch-action: none; }
+.plotbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; padding: 0 4px; }
+.plotbar input[type=range] { flex: 1 1 160px; accent-color: var(--pen); }
+.plotbar button { border: 1px solid var(--line); background: var(--sheet); border-radius: 7px; width: 34px; height: 30px; cursor: pointer; }
+.plotbar button:hover { border-color: var(--pen); }
+.klbl { font-size: 14px; min-width: 140px; font-variant-numeric: tabular-nums; }
+.readout { font-family: var(--ff-mono); font-size: 12.5px; color: var(--pencil); padding: 4px 4px 0; min-height: 22px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--pencil); padding: 4px 4px 0; }
+.legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+.opts { display: flex; gap: 14px; font-size: 13px; color: var(--pencil); padding: 2px 4px 0; }
+.opts label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+
+/* ---------- listy (stvorcekovy papier) ---------- */
+.sheet { background-color: var(--sheet); background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 22px 22px; border: 1px solid var(--line); border-radius: var(--r); }
+.sheet.on { border-color: var(--pen); box-shadow: 0 0 0 1px var(--pen); }
+.sh-h { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; justify-content: space-between; padding: 12px 16px; cursor: pointer; list-style: none; }
+.sh-h::-webkit-details-marker { display: none; }
+.sh-h h3 { margin: 0; font-family: var(--ff-math); font-weight: 600; font-size: 20px; }
+.sh-h h3 small { font-family: var(--ff-ui); font-weight: 500; font-size: 13px; color: var(--pencil); margin-left: 8px; }
+.sh-h .res { font-size: 15px; color: var(--pencil); }
+details.sheet > .sh-h h3::before { content: "▸"; display: inline-block; width: 18px; color: var(--faint); font-size: 15px; transition: transform .15s; }
+details.sheet[open] > .sh-h h3::before { transform: rotate(90deg); }
+.steps { list-style: none; margin: 0; padding: 0 16px 14px; counter-reset: st; display: grid; gap: 12px; }
+.st { counter-increment: st; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 2px 8px; }
+.st::before { content: counter(st); grid-row: span 2; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--pen); color: var(--pen); font-size: 12px; font-weight: 600; display: grid; place-items: center; margin-top: 1px; background: var(--sheet); }
+.st .lbl { font-weight: 600; font-size: 14px; }
+.st .bd { display: grid; gap: 4px; min-width: 0; }
+.ln { font-size: 18px; overflow-x: auto; overflow-y: hidden; padding: 2px 0; line-height: 1.75; }
+.nw { white-space: nowrap; }
+.ln.small { font-size: 15px; }
+.sub-h { font-weight: 600; font-size: 14px; color: var(--pencil); margin-top: 6px; }
+.box { border-left: 3px solid var(--line); padding: 2px 0 2px 12px; display: grid; gap: 4px; }
+.box.u1 { border-color: var(--pen); }
+.box.u2 { border-color: var(--amber); }
+.box.d { border-color: var(--red); }
+.note { font-size: 14px; color: var(--pencil); white-space: normal; }
+.note.ok { color: var(--ok); }
+.note.red { color: var(--red); background: var(--red-soft); padding: 6px 10px; border-radius: 6px; }
+.note.amber { color: var(--amber); background: var(--amber-soft); padding: 6px 10px; border-radius: 6px; }
+.nm { color: var(--pen); font-weight: 500; }
+.hint { color: var(--faint); font-size: .8em; margin-left: 4px; }
+.dec { font-weight: 600; }
+.dec.ok { color: var(--ok); }
+.dec.red { color: var(--red); }
+.endsheet { padding: 14px 16px; display: grid; gap: 6px; }
+.endsheet h3 { margin: 0; font-family: var(--ff-math); font-size: 20px; }
+.tblwrap { overflow-x: auto; }
+table.sumt { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+.sumt th, .sumt td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.sumt th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--pencil); }
+.sumt td { font-family: var(--ff-mono); font-size: 13px; }
+.sumt tr.on td { background: var(--pen-soft); }
+.empty { padding: 28px; text-align: center; color: var(--pencil); }
+
+/* ---------- matematika ---------- */
+.m { font-family: var(--ff-math); font-size: 1.08em; }
+.m i.v, .m i.c { font-style: italic; }
+.m .o { padding: 0 .18em; }
+.m .o.dot { padding: 0 .08em; }
+.m sup { font-size: .7em; vertical-align: .62em; line-height: 0; }
+.m sub, .sh-h sub, .st sub, .sum sub, .ln sub, .klbl sub { font-size: .72em; }
+.fr { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; font-size: .9em; margin: 0 .12em; line-height: 1.15; }
+.fr > .nu { border-bottom: 1px solid currentColor; padding: 0 .2em .05em; }
+.fr > .de { padding: .05em .2em 0; }
+.rt { display: inline-flex; align-items: stretch; white-space: nowrap; }
+.rt .rs { font-size: 1.05em; padding-right: .04em; }
+.rt .ra { border-top: 1px solid currentColor; padding: .06em .12em 0 .06em; margin-top: .14em; }
+.rt .ri { font-size: .55em; margin-right: -.5em; vertical-align: .9em; line-height: 0; }
+.sv { color: var(--pen); }
+.pa { font-family: var(--ff-math); }
+.mat { display: inline-flex; align-items: center; vertical-align: middle; gap: 2px; }
+.mat .br, .vec .br { font-size: 2.2em; font-weight: 300; line-height: 1; transform: scaleX(.6); }
+.mat .cells { display: grid; grid-template-columns: auto auto; gap: 2px 14px; text-align: center; font-size: .92em; }
+.vec { display: inline-flex; align-items: center; vertical-align: middle; gap: 2px; }
+.vec .cells { display: grid; gap: 2px; text-align: center; font-size: .92em; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (max-width: 520px) {
+  .ln { font-size: 16px; }
+  .preview { font-size: 20px; }
+  .sh-h h3 { font-size: 18px; }
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Optimalizácia <em>krok za krokom</em></h1>
+      <p>Najstrmší gradient, Newton, Powell a Nelder–Mead rozpísané tak, ako sa počítajú na papieri. Každý medzivýsledok, každé dosadenie a obrázok k tomu.</p>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Metóda">
+      <button type="button" role="tab" data-m="gradient" aria-selected="true">Najstrmší gradient</button>
+      <button type="button" role="tab" data-m="newton" aria-selected="false">Newton 2D</button>
+      <button type="button" role="tab" data-m="powell" aria-selected="false">Powell</button>
+      <button type="button" role="tab" data-m="nm" aria-selected="false">Nelder–Mead</button>
+    </nav>
+  </header>
+
+  <div class="layout">
+    <section class="inp card" aria-label="Zadanie">
+      <div>
+        <label class="lab" for="fn">Funkcia <span class="m"><i>f</i>(<i>x</i>, <i>y</i>)</span></label>
+        <input id="fn" class="fn-in" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" value="x^2 + 2y^2" aria-describedby="fnErr">
+        <div class="keys" id="keys">
+          <button type="button" data-ins="^2" title="na druhú">x²</button>
+          <button type="button" data-ins="^3" title="na tretiu">x³</button>
+          <button type="button" data-ins="^()" data-c="2" title="na n-tú">xⁿ</button>
+          <button type="button" data-ins="()/()" data-c="1" title="zlomok">a⁄b</button>
+          <button type="button" data-ins="√()" data-c="2" title="odmocnina">√</button>
+          <button type="button" data-ins="∛()" data-c="2" title="tretia odmocnina">∛</button>
+          <button type="button" data-ins="e^()" data-c="3" title="e na">eˣ</button>
+          <button type="button" data-ins="ln()" data-c="3" title="prirodzený logaritmus">ln</button>
+          <button type="button" data-ins="||" data-c="1" title="absolútna hodnota">|x|</button>
+          <button type="button" data-ins="sin()" data-c="4">sin</button>
+          <button type="button" data-ins="cos()" data-c="4">cos</button>
+          <button type="button" data-ins="π">π</button>
+          <button type="button" data-ins="x">x</button>
+          <button type="button" data-ins="y">y</button>
+          <button type="button" data-ins="(">(</button>
+          <button type="button" data-ins=")">)</button>
+        </div>
+        <div class="preview" id="preview" aria-live="polite"></div>
+        <div class="err" id="fnErr" hidden></div>
+        <p class="tip">Píš ako na papieri: <code>2xy</code>, <code>x²</code> alebo <code>x^2</code>, <code>√(x+1)</code>, <code>e^(x+y)</code>, <code>(x+1)/(y−2)</code>, <code>0,5x</code>. Znamienko krát netreba. <code>ln</code> je prirodzený logaritmus, <code>log</code> desiatkový.</p>
+      </div>
+
+      <div class="params">
+        <fieldset data-for="gradient newton powell">
+          <span class="lab">Štartovací bod</span>
+          <div class="row">
+            <label class="fld"><span><span class="m"><i>x</i><sub>0</sub></span></span><input id="x0" class="num-in" inputmode="decimal" value="3"></label>
+            <label class="fld"><span><span class="m"><i>y</i><sub>0</sub></span></span><input id="y0" class="num-in" inputmode="decimal" value="1"></label>
+          </div>
+        </fieldset>
+
+        <fieldset data-for="powell" hidden>
+          <span class="lab">Začiatočné smery</span>
+          <div class="row">
+            <div class="fld"><span><span class="m"><i>u</i><sub>1</sub></span></span>
+              <div class="pt">(<input id="u1x" class="num-in" inputmode="decimal" value="1" aria-label="u1 x">;<input id="u1y" class="num-in" inputmode="decimal" value="0" aria-label="u1 y">)</div></div>
+            <div class="fld"><span><span class="m"><i>u</i><sub>2</sub></span></span>
+              <div class="pt">(<input id="u2x" class="num-in" inputmode="decimal" value="0" aria-label="u2 x">;<input id="u2y" class="num-in" inputmode="decimal" value="1" aria-label="u2 y">)</div></div>
+          </div>
+          <p class="hint-s">Štandard je (1; 0) a potom (0; 1), teda najprv po x, potom po y. Meň iba vtedy, ak to zadanie výslovne chce.</p>
+        </fieldset>
+
+        <fieldset data-for="nm" hidden>
+          <span class="lab">Tri body trojuholníka</span>
+          <div class="row">
+            <div class="fld"><span>1. bod</span><div class="pt">(<input id="a1" class="num-in" inputmode="decimal" value="1,2" aria-label="1. bod x">;<input id="a2" class="num-in" inputmode="decimal" value="0" aria-label="1. bod y">)</div></div>
+            <div class="fld"><span>2. bod</span><div class="pt">(<input id="b1" class="num-in" inputmode="decimal" value="0" aria-label="2. bod x">;<input id="b2" class="num-in" inputmode="decimal" value="0,8" aria-label="2. bod y">)</div></div>
+            <div class="fld"><span>3. bod</span><div class="pt">(<input id="c1" class="num-in" inputmode="decimal" value="0" aria-label="3. bod x">;<input id="c2" class="num-in" inputmode="decimal" value="0" aria-label="3. bod y">)</div></div>
+          </div>
+          <span class="lab" style="margin-top:12px">Koeficienty</span>
+          <div class="row">
+            <label class="fld"><span>reflexia <span class="m"><i>α</i></span></span><input id="alfa" class="num-in" inputmode="decimal" value="1"></label>
+            <label class="fld"><span>expanzia <span class="m"><i>γ</i></span></span><input id="gama" class="num-in" inputmode="decimal" value="2"></label>
+            <label class="fld"><span>kontrakcia <span class="m"><i>ρ</i></span></span><input id="rho" class="num-in" inputmode="decimal" value="0,5"></label>
+            <label class="fld"><span>zmrštenie <span class="m"><i>σ</i></span></span><input id="sigma" class="num-in" inputmode="decimal" value="0,5"></label>
+          </div>
+          <span class="lab" style="margin-top:12px">Kontrakcia</span>
+          <div class="seg" role="radiogroup" aria-label="Kontrakcia">
+            <label><input type="radio" name="kontr" id="k-cv" value="cvicenie">cvičenie: len C₁</label>
+            <label><input type="radio" name="kontr" id="k-pr" value="prednaska" checked>prednáška: C₁ aj C₂</label>
+          </div>
+          <p class="hint-s">Predvolene ako na prednáške: C₁ = M + ρ(W − M) aj C₂ = M + ρ(R − M), berie sa ten s menším f.</p>
+        </fieldset>
+
+        <fieldset>
+          <span class="lab">Zastavenie</span>
+          <div class="row">
+            <label class="fld"><span>presnosť <span class="m"><i>ε</i></span></span><input id="eps" class="num-in" inputmode="decimal" value="0,001"></label>
+            <label class="fld"><span>max. iterácií</span><input id="maxit" class="num-in" inputmode="numeric" value="100"></label>
+          </div>
+        </fieldset>
+
+        <div class="exrow">
+          <label class="lab" for="ex">Príklady zo seedu (overené v Pythone)</label>
+          <select id="ex"></select>
+          <div class="exdesc" id="exdesc"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="side-in">
+        <section class="card sum" id="sum" aria-live="polite"></section>
+        <section class="card plotcard" aria-label="Graf">
+          <div class="plotwrap" id="plotwrap"><canvas id="plot" aria-label="Vrstevnice funkcie a cesta metódy"></canvas></div>
+          <div class="plotbar">
+            <button type="button" id="kPrev" aria-label="Predchádzajúca iterácia">◀</button>
+            <input type="range" id="kRange" min="0" max="0" value="0" aria-label="Iterácia na grafe">
+            <button type="button" id="kNext" aria-label="Ďalšia iterácia">▶</button>
+            <span class="klbl" id="kLbl"></span>
+          </div>
+          <div class="legend" id="legend"></div>
+          <div class="readout" id="readout">Prejdi myšou po grafe: ukáže súradnice a hodnotu f.</div>
+          <div class="opts"><label><input type="checkbox" id="zlomky" checked> zobrazovať presné zlomky (12/17 namiesto 0,705882)</label></div>
+        </section>
+      </div>
+    </aside>
+
+    <section class="sheets" id="sheets" aria-label="Výpočet po iteráciách"></section>
+  </div>
+</div>
+
+<script>
+{{ENGINE}}
+</script>
+<script>
+window.SEED_DATA = {{SEED}};
+</script>
+<script>
+{{APP}}
+</script>

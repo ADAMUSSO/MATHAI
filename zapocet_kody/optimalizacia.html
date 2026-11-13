@@ -1,0 +1,2145 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style>
+<title>Optimalizácia krok za krokom</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap">
+<style>
+/* Layout: vlavo zadanie a pod nim listy so stvorcekovym papierom (vypocet ako v zosite),
+   vpravo prilepeny vysledok + graf vrstevnic, ktory ide s iteraciou, ktoru prave citas. */
+:root {
+  --bg: #eef2f8;
+  --sheet: #ffffff;
+  --ink: #1b2232;
+  --pencil: #556073;
+  --faint: #8792a6;
+  --line: #d8dfeb;
+  --grid: rgba(47, 84, 170, .075);
+  --pen: #2747c4;
+  --pen-soft: rgba(39, 71, 196, .09);
+  --red: #c22f3a;
+  --red-soft: rgba(194, 47, 58, .08);
+  --ok: #17774c;
+  --ok-soft: rgba(23, 119, 76, .1);
+  --amber: #a15c00;
+  --amber-soft: rgba(161, 92, 0, .1);
+  --plot-lo: #bccbf1;
+  --plot-hi: #fbfcfe;
+  --contour: rgba(36, 56, 112, .32);
+  --path-old: rgba(39, 71, 196, .42);
+  --ff-math: "STIX Two Text", "Cambria Math", "Cambria", "Times New Roman", serif;
+  --ff-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ff-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d121b; --sheet: #141b28; --ink: #e4e9f3; --pencil: #a3adc1; --faint: #76819a;
+    --line: #263046; --grid: rgba(140, 170, 240, .065); --pen: #92a8ff; --pen-soft: rgba(146, 168, 255, .12);
+    --red: #ff7d86; --red-soft: rgba(255, 125, 134, .1); --ok: #5ccf96; --ok-soft: rgba(92, 207, 150, .1);
+    --amber: #f2b552; --amber-soft: rgba(242, 181, 82, .1); --plot-lo: #283d72; --plot-hi: #131a26;
+    --contour: rgba(172, 192, 240, .33); --path-old: rgba(146, 168, 255, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d121b; --sheet: #141b28; --ink: #e4e9f3; --pencil: #a3adc1; --faint: #76819a;
+  --line: #263046; --grid: rgba(140, 170, 240, .065); --pen: #92a8ff; --pen-soft: rgba(146, 168, 255, .12);
+  --red: #ff7d86; --red-soft: rgba(255, 125, 134, .1); --ok: #5ccf96; --ok-soft: rgba(92, 207, 150, .1);
+  --amber: #f2b552; --amber-soft: rgba(242, 181, 82, .1); --plot-lo: #283d72; --plot-hi: #131a26;
+  --contour: rgba(172, 192, 240, .33); --path-old: rgba(146, 168, 255, .5); color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--ff-ui); font-size: 15px; line-height: 1.5; }
+.app { max-width: 1440px; margin: 0 auto; padding-block: 20px 60px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
+
+/* ---------- hlavicka ---------- */
+.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px 28px; margin-bottom: 18px; }
+.brand h1 { font-family: var(--ff-math); font-weight: 600; font-size: clamp(26px, 3.4vw, 38px); line-height: 1.1; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+.brand h1 em { font-weight: 400; color: var(--pen); }
+.brand p { margin: 6px 0 0; color: var(--pencil); max-width: 60ch; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--sheet); border: 1px solid var(--line); border-radius: 12px; }
+.tabs button { border: 0; background: transparent; padding: 7px 14px; border-radius: 8px; cursor: pointer; font-weight: 500; color: var(--pencil); white-space: nowrap; }
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { background: var(--pen); color: var(--sheet); }
+
+/* ---------- rozlozenie ---------- */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 46%); grid-template-areas: "in side" "sheets side"; gap: 18px 22px; align-items: start; }
+.inp { grid-area: in; min-width: 0; }
+.side { grid-area: side; min-width: 0; align-self: stretch; }
+.side-in { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); display: grid; gap: 12px; }
+.sheets { grid-area: sheets; min-width: 0; display: grid; gap: 14px; }
+@media (max-width: 920px) {
+  .layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "in" "side" "sheets"; }
+  .side-in { position: static; }
+}
+
+.card { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); }
+
+/* ---------- zadanie ---------- */
+.inp { padding: 18px; display: grid; gap: 16px; }
+.lab .m { text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 400; }
+.lab { display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--pencil); margin-bottom: 6px; }
+.fn-in { width: 100%; font-family: var(--ff-mono); font-size: 18px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.fn-in.bad, .num-in.bad { border-color: var(--red); background: var(--red-soft); }
+.keys { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.keys button { min-width: 40px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--sheet); cursor: pointer; font-family: var(--ff-math); font-size: 16px; line-height: 1.2; }
+.keys button:hover { border-color: var(--pen); color: var(--pen); }
+.preview { margin-top: 12px; padding: 14px 16px; border-radius: 8px; background: var(--pen-soft); font-size: 24px; overflow-x: auto; min-height: 62px; display: flex; align-items: center; }
+.preview .m { white-space: nowrap; }
+.preview.bad { background: var(--red-soft); }
+.err { margin-top: 8px; color: var(--red); font-size: 14px; }
+.err code { font-family: var(--ff-mono); background: var(--sheet); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; }
+.err mark { background: var(--red); color: var(--sheet); border-radius: 2px; padding: 0 1px; }
+.tip { margin: 8px 0 0; font-size: 13px; color: var(--pencil); }
+.tip code { font-family: var(--ff-mono); font-size: 12.5px; background: var(--bg); padding: 0 4px; border-radius: 4px; }
+.params { display: grid; gap: 14px; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: end; }
+.fld { display: grid; gap: 3px; }
+.fld > span { font-size: 13px; color: var(--pencil); }
+.fld > span .m { color: var(--ink); }
+.num-in { width: 92px; font-family: var(--ff-mono); font-size: 15px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); }
+.pt { display: flex; gap: 4px; align-items: center; font-family: var(--ff-math); font-size: 18px; color: var(--pencil); }
+.pt .num-in { width: 78px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg label { padding: 6px 11px; cursor: pointer; font-size: 14px; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label:has(input:checked) { background: var(--pen); color: var(--sheet); }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--pen); outline-offset: -2px; }
+.hint-s { font-size: 12.5px; color: var(--faint); margin: 4px 0 0; }
+select { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); max-width: 100%; }
+.exrow { display: grid; gap: 4px; }
+.exdesc { font-size: 13px; color: var(--amber); }
+
+/* ---------- vysledok + graf ---------- */
+.sum { padding: 14px 16px; display: grid; gap: 8px; }
+.sum-top { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; justify-content: space-between; }
+.sum-res { font-size: 20px; }
+.sum-res .lbl2 { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--pencil); display: block; }
+.sum-meta { color: var(--pencil); font-size: 14px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; letter-spacing: .04em; padding: 3px 9px; border-radius: 999px; background: var(--ok-soft); color: var(--ok); }
+.chip.red { background: var(--red-soft); color: var(--red); }
+.chip.amber { background: var(--amber-soft); color: var(--amber); }
+.chip.blue { background: var(--pen-soft); color: var(--pen); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.errbox { padding: 10px 12px; border-radius: 8px; background: var(--red-soft); color: var(--red); font-size: 14px; }
+.plotcard { padding: 10px 10px 12px; }
+.plotwrap { position: relative; width: 100%; }
+canvas#plot { display: block; width: 100%; border-radius: 6px; touch-action: none; }
+.plotbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; padding: 0 4px; }
+.plotbar input[type=range] { flex: 1 1 160px; accent-color: var(--pen); }
+.plotbar button { border: 1px solid var(--line); background: var(--sheet); border-radius: 7px; width: 34px; height: 30px; cursor: pointer; }
+.plotbar button:hover { border-color: var(--pen); }
+.klbl { font-size: 14px; min-width: 140px; font-variant-numeric: tabular-nums; }
+.readout { font-family: var(--ff-mono); font-size: 12.5px; color: var(--pencil); padding: 4px 4px 0; min-height: 22px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--pencil); padding: 4px 4px 0; }
+.legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+.opts { display: flex; gap: 14px; font-size: 13px; color: var(--pencil); padding: 2px 4px 0; }
+.opts label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+
+/* ---------- listy (stvorcekovy papier) ---------- */
+.sheet { background-color: var(--sheet); background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 22px 22px; border: 1px solid var(--line); border-radius: var(--r); }
+.sheet.on { border-color: var(--pen); box-shadow: 0 0 0 1px var(--pen); }
+.sh-h { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; justify-content: space-between; padding: 12px 16px; cursor: pointer; list-style: none; }
+.sh-h::-webkit-details-marker { display: none; }
+.sh-h h3 { margin: 0; font-family: var(--ff-math); font-weight: 600; font-size: 20px; }
+.sh-h h3 small { font-family: var(--ff-ui); font-weight: 500; font-size: 13px; color: var(--pencil); margin-left: 8px; }
+.sh-h .res { font-size: 15px; color: var(--pencil); }
+details.sheet > .sh-h h3::before { content: "▸"; display: inline-block; width: 18px; color: var(--faint); font-size: 15px; transition: transform .15s; }
+details.sheet[open] > .sh-h h3::before { transform: rotate(90deg); }
+.steps { list-style: none; margin: 0; padding: 0 16px 14px; counter-reset: st; display: grid; gap: 12px; }
+.st { counter-increment: st; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 2px 8px; }
+.st::before { content: counter(st); grid-row: span 2; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--pen); color: var(--pen); font-size: 12px; font-weight: 600; display: grid; place-items: center; margin-top: 1px; background: var(--sheet); }
+.st .lbl { font-weight: 600; font-size: 14px; }
+.st .bd { display: grid; gap: 4px; min-width: 0; }
+.ln { font-size: 18px; overflow-x: auto; overflow-y: hidden; padding: 2px 0; line-height: 1.75; }
+.nw { white-space: nowrap; }
+.ln.small { font-size: 15px; }
+.sub-h { font-weight: 600; font-size: 14px; color: var(--pencil); margin-top: 6px; }
+.box { border-left: 3px solid var(--line); padding: 2px 0 2px 12px; display: grid; gap: 4px; }
+.box.u1 { border-color: var(--pen); }
+.box.u2 { border-color: var(--amber); }
+.box.d { border-color: var(--red); }
+.note { font-size: 14px; color: var(--pencil); white-space: normal; }
+.note.ok { color: var(--ok); }
+.note.red { color: var(--red); background: var(--red-soft); padding: 6px 10px; border-radius: 6px; }
+.note.amber { color: var(--amber); background: var(--amber-soft); padding: 6px 10px; border-radius: 6px; }
+.nm { color: var(--pen); font-weight: 500; }
+.hint { color: var(--faint); font-size: .8em; margin-left: 4px; }
+.dec { font-weight: 600; }
+.dec.ok { color: var(--ok); }
+.dec.red { color: var(--red); }
+.endsheet { padding: 14px 16px; display: grid; gap: 6px; }
+.endsheet h3 { margin: 0; font-family: var(--ff-math); font-size: 20px; }
+.tblwrap { overflow-x: auto; }
+table.sumt { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+.sumt th, .sumt td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.sumt th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--pencil); }
+.sumt td { font-family: var(--ff-mono); font-size: 13px; }
+.sumt tr.on td { background: var(--pen-soft); }
+.empty { padding: 28px; text-align: center; color: var(--pencil); }
+
+/* ---------- matematika ---------- */
+.m { font-family: var(--ff-math); font-size: 1.08em; }
+.m i.v, .m i.c { font-style: italic; }
+.m .o { padding: 0 .18em; }
+.m .o.dot { padding: 0 .08em; }
+.m sup { font-size: .7em; vertical-align: .62em; line-height: 0; }
+.m sub, .sh-h sub, .st sub, .sum sub, .ln sub, .klbl sub { font-size: .72em; }
+.fr { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; font-size: .9em; margin: 0 .12em; line-height: 1.15; }
+.fr > .nu { border-bottom: 1px solid currentColor; padding: 0 .2em .05em; }
+.fr > .de { padding: .05em .2em 0; }
+.rt { display: inline-flex; align-items: stretch; white-space: nowrap; }
+.rt .rs { font-size: 1.05em; padding-right: .04em; }
+.rt .ra { border-top: 1px solid currentColor; padding: .06em .12em 0 .06em; margin-top: .14em; }
+.rt .ri { font-size: .55em; margin-right: -.5em; vertical-align: .9em; line-height: 0; }
+.sv { color: var(--pen); }
+.pa { font-family: var(--ff-math); }
+.mat { display: inline-flex; align-items: center; vertical-align: middle; gap: 2px; }
+.mat .br, .vec .br { font-size: 2.2em; font-weight: 300; line-height: 1; transform: scaleX(.6); }
+.mat .cells { display: grid; grid-template-columns: auto auto; gap: 2px 14px; text-align: center; font-size: .92em; }
+.vec { display: inline-flex; align-items: center; vertical-align: middle; gap: 2px; }
+.vec .cells { display: grid; gap: 2px; text-align: center; font-size: .92em; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (max-width: 520px) {
+  .ln { font-size: 16px; }
+  .preview { font-size: 20px; }
+  .sh-h h3 { font-size: 18px; }
+}
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Optimalizácia <em>krok za krokom</em></h1>
+      <p>Najstrmší gradient, Newton, Powell a Nelder–Mead rozpísané tak, ako sa počítajú na papieri. Každý medzivýsledok, každé dosadenie a obrázok k tomu.</p>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Metóda">
+      <button type="button" role="tab" data-m="gradient" aria-selected="true">Najstrmší gradient</button>
+      <button type="button" role="tab" data-m="newton" aria-selected="false">Newton 2D</button>
+      <button type="button" role="tab" data-m="powell" aria-selected="false">Powell</button>
+      <button type="button" role="tab" data-m="nm" aria-selected="false">Nelder–Mead</button>
+    </nav>
+  </header>
+
+  <div class="layout">
+    <section class="inp card" aria-label="Zadanie">
+      <div>
+        <label class="lab" for="fn">Funkcia <span class="m"><i>f</i>(<i>x</i>, <i>y</i>)</span></label>
+        <input id="fn" class="fn-in" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" value="x^2 + 2y^2" aria-describedby="fnErr">
+        <div class="keys" id="keys">
+          <button type="button" data-ins="^2" title="na druhú">x²</button>
+          <button type="button" data-ins="^3" title="na tretiu">x³</button>
+          <button type="button" data-ins="^()" data-c="2" title="na n-tú">xⁿ</button>
+          <button type="button" data-ins="()/()" data-c="1" title="zlomok">a⁄b</button>
+          <button type="button" data-ins="√()" data-c="2" title="odmocnina">√</button>
+          <button type="button" data-ins="∛()" data-c="2" title="tretia odmocnina">∛</button>
+          <button type="button" data-ins="e^()" data-c="3" title="e na">eˣ</button>
+          <button type="button" data-ins="ln()" data-c="3" title="prirodzený logaritmus">ln</button>
+          <button type="button" data-ins="||" data-c="1" title="absolútna hodnota">|x|</button>
+          <button type="button" data-ins="sin()" data-c="4">sin</button>
+          <button type="button" data-ins="cos()" data-c="4">cos</button>
+          <button type="button" data-ins="π">π</button>
+          <button type="button" data-ins="x">x</button>
+          <button type="button" data-ins="y">y</button>
+          <button type="button" data-ins="(">(</button>
+          <button type="button" data-ins=")">)</button>
+        </div>
+        <div class="preview" id="preview" aria-live="polite"></div>
+        <div class="err" id="fnErr" hidden></div>
+        <p class="tip">Píš ako na papieri: <code>2xy</code>, <code>x²</code> alebo <code>x^2</code>, <code>√(x+1)</code>, <code>e^(x+y)</code>, <code>(x+1)/(y−2)</code>, <code>0,5x</code>. Znamienko krát netreba. <code>ln</code> je prirodzený logaritmus, <code>log</code> desiatkový.</p>
+      </div>
+
+      <div class="params">
+        <fieldset data-for="gradient newton powell">
+          <span class="lab">Štartovací bod</span>
+          <div class="row">
+            <label class="fld"><span><span class="m"><i>x</i><sub>0</sub></span></span><input id="x0" class="num-in" inputmode="decimal" value="3"></label>
+            <label class="fld"><span><span class="m"><i>y</i><sub>0</sub></span></span><input id="y0" class="num-in" inputmode="decimal" value="1"></label>
+          </div>
+        </fieldset>
+
+        <fieldset data-for="powell" hidden>
+          <span class="lab">Začiatočné smery</span>
+          <div class="row">
+            <div class="fld"><span><span class="m"><i>u</i><sub>1</sub></span></span>
+              <div class="pt">(<input id="u1x" class="num-in" inputmode="decimal" value="1" aria-label="u1 x">;<input id="u1y" class="num-in" inputmode="decimal" value="0" aria-label="u1 y">)</div></div>
+            <div class="fld"><span><span class="m"><i>u</i><sub>2</sub></span></span>
+              <div class="pt">(<input id="u2x" class="num-in" inputmode="decimal" value="0" aria-label="u2 x">;<input id="u2y" class="num-in" inputmode="decimal" value="1" aria-label="u2 y">)</div></div>
+          </div>
+          <p class="hint-s">Štandard je (1; 0) a potom (0; 1), teda najprv po x, potom po y. Meň iba vtedy, ak to zadanie výslovne chce.</p>
+        </fieldset>
+
+        <fieldset data-for="nm" hidden>
+          <span class="lab">Tri body trojuholníka</span>
+          <div class="row">
+            <div class="fld"><span>1. bod</span><div class="pt">(<input id="a1" class="num-in" inputmode="decimal" value="1,2" aria-label="1. bod x">;<input id="a2" class="num-in" inputmode="decimal" value="0" aria-label="1. bod y">)</div></div>
+            <div class="fld"><span>2. bod</span><div class="pt">(<input id="b1" class="num-in" inputmode="decimal" value="0" aria-label="2. bod x">;<input id="b2" class="num-in" inputmode="decimal" value="0,8" aria-label="2. bod y">)</div></div>
+            <div class="fld"><span>3. bod</span><div class="pt">(<input id="c1" class="num-in" inputmode="decimal" value="0" aria-label="3. bod x">;<input id="c2" class="num-in" inputmode="decimal" value="0" aria-label="3. bod y">)</div></div>
+          </div>
+          <span class="lab" style="margin-top:12px">Koeficienty</span>
+          <div class="row">
+            <label class="fld"><span>reflexia <span class="m"><i>α</i></span></span><input id="alfa" class="num-in" inputmode="decimal" value="1"></label>
+            <label class="fld"><span>expanzia <span class="m"><i>γ</i></span></span><input id="gama" class="num-in" inputmode="decimal" value="2"></label>
+            <label class="fld"><span>kontrakcia <span class="m"><i>ρ</i></span></span><input id="rho" class="num-in" inputmode="decimal" value="0,5"></label>
+            <label class="fld"><span>zmrštenie <span class="m"><i>σ</i></span></span><input id="sigma" class="num-in" inputmode="decimal" value="0,5"></label>
+          </div>
+          <span class="lab" style="margin-top:12px">Kontrakcia</span>
+          <div class="seg" role="radiogroup" aria-label="Kontrakcia">
+            <label><input type="radio" name="kontr" id="k-cv" value="cvicenie">cvičenie: len C₁</label>
+            <label><input type="radio" name="kontr" id="k-pr" value="prednaska" checked>prednáška: C₁ aj C₂</label>
+          </div>
+          <p class="hint-s">Predvolene ako na prednáške: C₁ = M + ρ(W − M) aj C₂ = M + ρ(R − M), berie sa ten s menším f.</p>
+        </fieldset>
+
+        <fieldset>
+          <span class="lab">Zastavenie</span>
+          <div class="row">
+            <label class="fld"><span>presnosť <span class="m"><i>ε</i></span></span><input id="eps" class="num-in" inputmode="decimal" value="0,001"></label>
+            <label class="fld"><span>max. iterácií</span><input id="maxit" class="num-in" inputmode="numeric" value="100"></label>
+          </div>
+        </fieldset>
+
+        <div class="exrow">
+          <label class="lab" for="ex">Príklady zo seedu (overené v Pythone)</label>
+          <select id="ex"></select>
+          <div class="exdesc" id="exdesc"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="side-in">
+        <section class="card sum" id="sum" aria-live="polite"></section>
+        <section class="card plotcard" aria-label="Graf">
+          <div class="plotwrap" id="plotwrap"><canvas id="plot" aria-label="Vrstevnice funkcie a cesta metódy"></canvas></div>
+          <div class="plotbar">
+            <button type="button" id="kPrev" aria-label="Predchádzajúca iterácia">◀</button>
+            <input type="range" id="kRange" min="0" max="0" value="0" aria-label="Iterácia na grafe">
+            <button type="button" id="kNext" aria-label="Ďalšia iterácia">▶</button>
+            <span class="klbl" id="kLbl"></span>
+          </div>
+          <div class="legend" id="legend"></div>
+          <div class="readout" id="readout">Prejdi myšou po grafe: ukáže súradnice a hodnotu f.</div>
+          <div class="opts"><label><input type="checkbox" id="zlomky" checked> zobrazovať presné zlomky (12/17 namiesto 0,705882)</label></div>
+        </section>
+      </div>
+    </aside>
+
+    <section class="sheets" id="sheets" aria-label="Výpočet po iteráciách"></section>
+  </div>
+</div>
+
+<script>
+/* Vypoctove jadro: parser, derivacie, polynomy, 4 metody.
+   Algoritmy su presne podla Python skriptov v zapocet_kody (gradient.py, newton.py,
+   powell.py, nelder_mead.py), aby vysledky sedeli so seedom. Ziadne externe kniznice. */
+(function (root) {
+  'use strict';
+
+  // ======================================================================
+  //  1. TOKENIZER + PARSER  (x^2, x², 2xy, √x, |x|, e^x, ln, 0,5 ...)
+  // ======================================================================
+  function ParseError(message, pos) { this.message = message; this.pos = pos; }
+
+  const SUP = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '-' };
+  const NAMES = ['sqrt', 'cbrt', 'exp', 'sin', 'cos', 'tan', 'abs', 'ln', 'log', 'pi', 'e', 'x', 'y'];
+  const FUNCS = new Set(['sqrt', 'cbrt', 'exp', 'sin', 'cos', 'tan', 'abs', 'ln', 'log']);
+
+  function tokenize(s) {
+    const t = [];
+    let i = 0;
+    while (i < s.length) {
+      const ch = s[i];
+      if (/\s/.test(ch)) { i++; continue; }
+      if (SUP[ch] !== undefined) {
+        let j = i, txt = '';
+        while (j < s.length && SUP[s[j]] !== undefined) { txt += SUP[s[j]]; j++; }
+        if (!/^-?\d+$/.test(txt)) throw new ParseError('Nesprávny exponent', i);
+        t.push({ k: 'op', v: '^', pos: i }, { k: '(', pos: i });
+        if (txt[0] === '-') t.push({ k: 'op', v: '-', pos: i });
+        const d = txt.replace('-', '');
+        t.push({ k: 'num', v: parseInt(d, 10), txt: d, pos: i }, { k: ')', pos: i });
+        i = j; continue;
+      }
+      if (/[0-9.,]/.test(ch)) {
+        let j = i;
+        while (j < s.length && /[0-9.,]/.test(s[j])) j++;
+        const raw = s.slice(i, j), norm = raw.replace(/,/g, '.');
+        if ((norm.match(/\./g) || []).length > 1 || norm === '.')
+          throw new ParseError('Nesprávne číslo „' + raw + '“', i);
+        t.push({ k: 'num', v: parseFloat(norm), txt: norm, pos: i });
+        i = j; continue;
+      }
+      if (/[a-zA-Z]/.test(ch)) {
+        let j = i;
+        while (j < s.length && /[a-zA-Z]/.test(s[j])) j++;
+        const word = s.slice(i, j).toLowerCase();
+        let p = 0;
+        while (p < word.length) {
+          const name = NAMES.find(n => word.startsWith(n, p));
+          if (!name) throw new ParseError('Neznáme písmeno „' + word[p] + '“. Funkcia môže obsahovať len x a y.', i + p);
+          t.push({ k: FUNCS.has(name) ? 'fn' : 'id', v: name, pos: i + p });
+          p += name.length;
+        }
+        i = j; continue;
+      }
+      if ('+-−–'.includes(ch)) { t.push({ k: 'op', v: ch === '+' ? '+' : '-', pos: i }); i++; continue; }
+      if ('*·×⋅∙'.includes(ch)) { t.push({ k: 'op', v: '*', pos: i }); i++; continue; }
+      if ('/÷:'.includes(ch)) { t.push({ k: 'op', v: '/', pos: i }); i++; continue; }
+      if (ch === '^') { t.push({ k: 'op', v: '^', pos: i }); i++; continue; }
+      if ('([{'.includes(ch)) { t.push({ k: '(', pos: i }); i++; continue; }
+      if (')]}'.includes(ch)) { t.push({ k: ')', pos: i }); i++; continue; }
+      if (ch === '|') { t.push({ k: '|', pos: i }); i++; continue; }
+      if (ch === '√') { t.push({ k: 'fn', v: 'sqrt', pos: i }); i++; continue; }
+      if (ch === '∛') { t.push({ k: 'fn', v: 'cbrt', pos: i }); i++; continue; }
+      if (ch === 'π') { t.push({ k: 'id', v: 'pi', pos: i }); i++; continue; }
+      throw new ParseError('Neznámy znak „' + ch + '“', i);
+    }
+    return t;
+  }
+
+  function parse(src) {
+    const toks = tokenize(src);
+    if (!toks.length) throw new ParseError('Zadaj funkciu', 0);
+    let i = 0, absDepth = 0;
+    const peek = () => toks[i];
+    const isOp = (tk, v) => tk && tk.k === 'op' && tk.v === v;
+    const startsFactor = tk => tk && (tk.k === 'num' || tk.k === 'id' || tk.k === 'fn' || tk.k === '(' || (tk.k === '|' && absDepth === 0));
+    const endPos = () => (toks[i] ? toks[i].pos : src.length);
+
+    function expr() {
+      let a = term();
+      while (isOp(peek(), '+') || isOp(peek(), '-')) {
+        const o = toks[i++].v;
+        a = { t: o, a, b: term() };
+      }
+      return a;
+    }
+    function term() {
+      let a = unary();
+      for (;;) {
+        const tk = peek();
+        if (isOp(tk, '*') || isOp(tk, '/')) { i++; a = { t: tk.v, a, b: unary() }; }
+        else if (startsFactor(tk)) { a = { t: '*', a, b: power() }; }
+        else break;
+      }
+      return a;
+    }
+    function unary() {
+      const tk = peek();
+      if (isOp(tk, '-')) { i++; return { t: 'neg', a: unary() }; }
+      if (isOp(tk, '+')) { i++; return unary(); }
+      return power();
+    }
+    function power() {
+      const base = primary();
+      if (isOp(peek(), '^')) { i++; return { t: '^', a: base, b: unary() }; }
+      return base;
+    }
+    function primary() {
+      const tk = toks[i++];
+      if (!tk) throw new ParseError('Výraz je neúplný, na konci niečo chýba', src.length);
+      if (tk.k === 'num') return { t: 'num', v: tk.v, txt: tk.txt };
+      if (tk.k === 'id') {
+        if (tk.v === 'x' || tk.v === 'y') return { t: 'var', n: tk.v };
+        if (tk.v === 'e') return { t: 'const', n: 'e', v: Math.E };
+        return { t: 'const', n: 'π', v: Math.PI };
+      }
+      if (tk.k === 'fn') {
+        let arg;
+        if (peek() && peek().k === '(') {
+          i++; arg = expr();
+          if (!peek() || peek().k !== ')') throw new ParseError('Chýba zatváracia zátvorka )', endPos());
+          i++;
+        } else {
+          if (!peek() || !(startsFactor(peek()) || peek().k === '|')) throw new ParseError('Za „' + tk.v + '“ chýba, z čoho sa počíta', tk.pos);
+          arg = power();
+        }
+        return { t: 'fn', n: tk.v, a: arg };
+      }
+      if (tk.k === '(') {
+        const e = expr();
+        if (!peek() || peek().k !== ')') throw new ParseError('Chýba zatváracia zátvorka )', endPos());
+        i++;
+        return e;
+      }
+      if (tk.k === '|') {
+        absDepth++;
+        const e = expr();
+        if (!peek() || peek().k !== '|') throw new ParseError('Chýba zatváracia čiara | pri absolútnej hodnote', endPos());
+        i++; absDepth--;
+        return { t: 'fn', n: 'abs', a: e };
+      }
+      if (tk.k === ')') throw new ParseError('Zátvorka ) navyše alebo chýba niečo pred ňou', tk.pos);
+      throw new ParseError('Tu chýba číslo alebo premenná', tk.pos);
+    }
+    const node = expr();
+    if (i < toks.length) {
+      const tk = toks[i];
+      throw new ParseError(tk.k === ')' ? 'Zátvorka ) navyše' : 'Nečakaný znak', tk.pos);
+    }
+    return node;
+  }
+
+  // ======================================================================
+  //  2. VYHODNOTENIE  (premenne x, y, g = gama)
+  // ======================================================================
+  function fnValue(n, v) {
+    switch (n) {
+      case 'sqrt': return v < 0 ? NaN : Math.sqrt(v);
+      case 'cbrt': return Math.cbrt(v);
+      case 'exp': return Math.exp(v);
+      case 'ln': return v <= 0 ? NaN : Math.log(v);
+      case 'log': return v <= 0 ? NaN : Math.log10(v);
+      case 'sin': return Math.sin(v);
+      case 'cos': return Math.cos(v);
+      case 'tan': return Math.tan(v);
+      case 'abs': return Math.abs(v);
+      case 'sign': return v > 0 ? 1 : v < 0 ? -1 : 0;
+    }
+    return NaN;
+  }
+
+  function compile(n) {
+    switch (n.t) {
+      case 'num': case 'const': { const v = n.v; return () => v; }
+      case 'var': return n.n === 'x' ? (x) => x : n.n === 'y' ? (x, y) => y : (x, y, g) => g;
+      case 'neg': { const a = compile(n.a); return (x, y, g) => -a(x, y, g); }
+      case '+': { const a = compile(n.a), b = compile(n.b); return (x, y, g) => a(x, y, g) + b(x, y, g); }
+      case '-': { const a = compile(n.a), b = compile(n.b); return (x, y, g) => a(x, y, g) - b(x, y, g); }
+      case '*': { const a = compile(n.a), b = compile(n.b); return (x, y, g) => a(x, y, g) * b(x, y, g); }
+      case '/': { const a = compile(n.a), b = compile(n.b); return (x, y, g) => { const d = b(x, y, g); return d === 0 ? NaN : a(x, y, g) / d; }; }
+      case '^': {
+        const a = compile(n.a), b = compile(n.b);
+        return (x, y, g) => {
+          const base = a(x, y, g), ex = b(x, y, g);
+          if (base === 0 && ex < 0) return NaN;
+          return Math.pow(base, ex);
+        };
+      }
+      case 'fn': { const a = compile(n.a), name = n.n; return (x, y, g) => fnValue(name, a(x, y, g)); }
+    }
+    throw new Error('compile: ' + n.t);
+  }
+
+  function hasVar(n, v) {
+    switch (n.t) {
+      case 'var': return n.n === v;
+      case 'num': case 'const': return false;
+      case 'neg': case 'fn': return hasVar(n.a, v);
+      default: return hasVar(n.a, v) || hasVar(n.b, v);
+    }
+  }
+  const isConstNode = n => !hasVar(n, 'x') && !hasVar(n, 'y') && !hasVar(n, 'g');
+
+  // ======================================================================
+  //  3. POLYNOMY v x, y  (mapa "i,j" -> koeficient)
+  // ======================================================================
+  function pAdd(p, q, s) {
+    const r = Object.assign({}, p);
+    for (const k in q) r[k] = (r[k] || 0) + s * q[k];
+    return r;
+  }
+  function pMul(p, q) {
+    const r = {};
+    for (const a in p) for (const b in q) {
+      const [i1, j1] = a.split(',').map(Number), [i2, j2] = b.split(',').map(Number);
+      const k = (i1 + i2) + ',' + (j1 + j2);
+      r[k] = (r[k] || 0) + p[a] * q[b];
+    }
+    return r;
+  }
+  function pScale(p, c) { const r = {}; for (const k in p) r[k] = p[k] * c; return r; }
+  const pConst = c => ({ '0,0': c });
+  function pIsConst(p) { for (const k in p) if (k !== '0,0' && p[k] !== 0) return false; return true; }
+  const pConstVal = p => p['0,0'] || 0;
+
+  function toPoly(n) {
+    if (isConstNode(n)) {
+      const v = compile(n)(0, 0, 0);
+      return isFinite(v) ? pConst(v) : null;
+    }
+    switch (n.t) {
+      case 'var': return n.n === 'x' ? { '1,0': 1 } : n.n === 'y' ? { '0,1': 1 } : null;
+      case 'neg': { const a = toPoly(n.a); return a && pScale(a, -1); }
+      case '+': case '-': {
+        const a = toPoly(n.a), b = toPoly(n.b);
+        return a && b && pAdd(a, b, n.t === '+' ? 1 : -1);
+      }
+      case '*': { const a = toPoly(n.a), b = toPoly(n.b); return a && b && pMul(a, b); }
+      case '/': {
+        const a = toPoly(n.a), b = toPoly(n.b);
+        if (!a || !b || !pIsConst(b) || pConstVal(b) === 0) return null;
+        return pScale(a, 1 / pConstVal(b));
+      }
+      case '^': {
+        const a = toPoly(n.a);
+        if (!a || !isConstNode(n.b)) return null;
+        const e = compile(n.b)(0, 0, 0);
+        if (!Number.isInteger(e) || e < 0 || e > 40) return null;
+        let r = pConst(1);
+        for (let k = 0; k < e; k++) r = pMul(r, a);
+        return r;
+      }
+    }
+    return null;
+  }
+  function pClean(p) {
+    const r = {};
+    for (const k in p) if (p[k] !== 0) r[k] = p[k];
+    return r;
+  }
+  function pDeriv(p, v) {
+    const r = {};
+    for (const k in p) {
+      const [i, j] = k.split(',').map(Number);
+      if (v === 'x' && i > 0) r[(i - 1) + ',' + j] = (r[(i - 1) + ',' + j] || 0) + p[k] * i;
+      if (v === 'y' && j > 0) r[i + ',' + (j - 1)] = (r[i + ',' + (j - 1)] || 0) + p[k] * j;
+    }
+    return pClean(r);
+  }
+  function pEval(p, x, y) {
+    let s = 0;
+    for (const k in p) { const [i, j] = k.split(',').map(Number); s += p[k] * Math.pow(x, i) * Math.pow(y, j); }
+    return s;
+  }
+  // dosadenie priamky x = a + b*g, y = c + d*g  ->  koeficienty polynomu v g (od g^0)
+  function uMul(p, q) {
+    const r = new Array(p.length + q.length - 1).fill(0);
+    for (let i = 0; i < p.length; i++) for (let j = 0; j < q.length; j++) r[i + j] += p[i] * q[j];
+    return r;
+  }
+  function pSubstLine(p, a, b, c, d) {
+    let res = [0];
+    const pw = (base, e) => { let r = [1]; for (let k = 0; k < e; k++) r = uMul(r, base); return r; };
+    for (const k in p) {
+      const [i, j] = k.split(',').map(Number);
+      const t = uMul(pw([a, b], i), pw([c, d], j)).map(v => v * p[k]);
+      if (t.length > res.length) res = res.concat(new Array(t.length - res.length).fill(0));
+      for (let m = 0; m < t.length; m++) res[m] += t[m];
+    }
+    return res;
+  }
+
+  // ---- polynom jednej premennej (koeficienty od g^0) ----
+  function uTrim(c) { const r = c.slice(); while (r.length > 1 && r[r.length - 1] === 0) r.pop(); return r; }
+  const uDeg = c => uTrim(c).length - 1;
+  function uEval(c, g) { let s = 0; for (let k = c.length - 1; k >= 0; k--) s = s * g + c[k]; return s; }
+  function uDeriv(c) { const r = []; for (let k = 1; k < c.length; k++) r.push(c[k] * k); return r.length ? r : [0]; }
+  // ako ocisti_polynom v Pythone: koeficienty ~1e-17 su len zaokruhlovacie smeti
+  function uChop(c) {
+    let mx = 0;
+    for (let k = 1; k < c.length; k++) mx = Math.max(mx, Math.abs(c[k]));
+    const lim = mx ? 1e-12 * mx : 0;
+    return uTrim(c.map((v, k) => (k === 0 || Math.abs(v) > lim ? v : 0)));
+  }
+
+  // komplexne korene (Durand-Kerner + Newton), ako sympy nroots
+  function uRoots(cIn) {
+    const c = uTrim(cIn), n = c.length - 1;
+    if (n < 1) return [];
+    const a = c.map(v => v / c[n]);
+    if (n === 1) return [{ re: -a[0], im: 0 }];
+    let R = 0;
+    for (let k = 0; k < n; k++) R = Math.max(R, Math.pow(Math.abs(a[k]), 1 / (n - k)));
+    R = Math.max(R, 1e-3);
+    const zr = [], zi = [];
+    for (let k = 0; k < n; k++) { const th = 2 * Math.PI * k / n + 0.4; zr.push(R * Math.cos(th)); zi.push(R * Math.sin(th)); }
+    const pv = (re, im) => {
+      let sr = 1, si = 0;               // monicky polynom, Horner
+      for (let k = n - 1; k >= 0; k--) { const tr = sr * re - si * im + a[k], ti = sr * im + si * re; sr = tr; si = ti; }
+      return [sr, si];
+    };
+    for (let it = 0; it < 5000; it++) {
+      let mx = 0;
+      for (let k = 0; k < n; k++) {
+        let [nr, ni] = pv(zr[k], zi[k]);
+        let dr = 1, di = 0;
+        for (let j = 0; j < n; j++) if (j !== k) {
+          const er = zr[k] - zr[j], ei = zi[k] - zi[j];
+          const tr = dr * er - di * ei, ti = dr * ei + di * er; dr = tr; di = ti;
+        }
+        const den = dr * dr + di * di;
+        if (den === 0) { zr[k] += 1e-8 * R; continue; }
+        const qr = (nr * dr + ni * di) / den, qi = (ni * dr - nr * di) / den;
+        zr[k] -= qr; zi[k] -= qi;
+        mx = Math.max(mx, Math.hypot(qr, qi) / (1 + Math.hypot(zr[k], zi[k])));
+      }
+      if (mx < 1e-15) break;
+    }
+    // dopresnenie Newtonom (komplexne), pre jednoduche korene az na strojovu presnost
+    const da = [];
+    for (let k = 1; k <= n; k++) da.push(k === n ? n : a[k] * k);
+    const dv = (re, im) => {
+      let sr = 0, si = 0;
+      for (let k = da.length - 1; k >= 0; k--) { const tr = sr * re - si * im + da[k], ti = sr * im + si * re; sr = tr; si = ti; }
+      return [sr, si];
+    };
+    for (let k = 0; k < n; k++) {
+      for (let it = 0; it < 8; it++) {
+        const [nr, ni] = pv(zr[k], zi[k]), [dr, di] = dv(zr[k], zi[k]);
+        const den = dr * dr + di * di;
+        if (!den) break;
+        const qr = (nr * dr + ni * di) / den, qi = (ni * dr - nr * di) / den;
+        const before = Math.hypot(nr, ni);
+        const [mr, mi] = pv(zr[k] - qr, zi[k] - qi);
+        if (Math.hypot(mr, mi) >= before) break;
+        zr[k] -= qr; zi[k] -= qi;
+      }
+    }
+    return zr.map((re, k) => ({ re, im: zi[k] }));
+  }
+
+  // kriticke body phi: korene phi' (viacnasobne spojene), typ min/max/inflex
+  function uCritical(phi) {
+    const dphi = uDeriv(phi);
+    if (uDeg(dphi) < 1) return [];
+    const real = uRoots(dphi).filter(r => Math.abs(r.im) < 1e-4 * (1 + Math.abs(r.re))).map(r => r.re).sort((p, q) => p - q);
+    const groups = [];
+    for (const r of real) {
+      const g = groups[groups.length - 1];
+      if (g && Math.abs(r - g[g.length - 1]) < 1e-4 * (1 + Math.abs(r))) g.push(r); else groups.push([r]);
+    }
+    return groups.map(g => {
+      const r = g.reduce((s, v) => s + v, 0) / g.length;
+      const h = 1e-3 * (1 + Math.abs(r));
+      const v = uEval(phi, r), vl = uEval(phi, r - h), vr = uEval(phi, r + h);
+      const typ = (vl >= v && vr >= v) ? 'min' : (vl <= v && vr <= v) ? 'max' : 'inflex';
+      return { g: r, phi: v, typ, nasobnost: g.length };
+    });
+  }
+  const round12 = v => Math.round(v * 1e12) / 1e12;
+
+  // ======================================================================
+  //  4. SYMBOLICKE DERIVACIE + ZJEDNODUSENIE
+  // ======================================================================
+  const N = v => ({ t: 'num', v });
+  const isN = (n, v) => n.t === 'num' && (v === undefined || n.v === v);
+
+  function deriv(n, v) {
+    switch (n.t) {
+      case 'num': case 'const': return N(0);
+      case 'var': return N(n.n === v ? 1 : 0);
+      case 'neg': return { t: 'neg', a: deriv(n.a, v) };
+      case '+': case '-': return { t: n.t, a: deriv(n.a, v), b: deriv(n.b, v) };
+      case '*': return { t: '+', a: { t: '*', a: deriv(n.a, v), b: n.b }, b: { t: '*', a: n.a, b: deriv(n.b, v) } };
+      case '/': return { t: '/', a: { t: '-', a: { t: '*', a: deriv(n.a, v), b: n.b }, b: { t: '*', a: n.a, b: deriv(n.b, v) } }, b: { t: '^', a: n.b, b: N(2) } };
+      case '^': {
+        const ab = hasVar(n.a, v), eb = hasVar(n.b, v);
+        if (!eb) return { t: '*', a: { t: '*', a: n.b, b: { t: '^', a: n.a, b: { t: '-', a: n.b, b: N(1) } } }, b: deriv(n.a, v) };
+        if (!ab && n.a.t === 'const' && n.a.n === 'e') return { t: '*', a: n, b: deriv(n.b, v) };
+        if (!ab) return { t: '*', a: { t: '*', a: n, b: { t: 'fn', n: 'ln', a: n.a } }, b: deriv(n.b, v) };
+        return { t: '*', a: n, b: { t: '+', a: { t: '*', a: deriv(n.b, v), b: { t: 'fn', n: 'ln', a: n.a } }, b: { t: '/', a: { t: '*', a: n.b, b: deriv(n.a, v) }, b: n.a } } };
+      }
+      case 'fn': {
+        const da = deriv(n.a, v), a = n.a;
+        let outer;
+        switch (n.n) {
+          case 'sqrt': return { t: '/', a: da, b: { t: '*', a: N(2), b: n } };
+          case 'cbrt': return { t: '/', a: da, b: { t: '*', a: N(3), b: { t: '^', a: n, b: N(2) } } };
+          case 'exp': outer = n; break;
+          case 'ln': return { t: '/', a: da, b: a };
+          case 'log': return { t: '/', a: da, b: { t: '*', a, b: { t: 'fn', n: 'ln', a: N(10) } } };
+          case 'sin': outer = { t: 'fn', n: 'cos', a }; break;
+          case 'cos': outer = { t: 'neg', a: { t: 'fn', n: 'sin', a } }; break;
+          case 'tan': return { t: '/', a: da, b: { t: '^', a: { t: 'fn', n: 'cos', a }, b: N(2) } };
+          case 'abs': outer = { t: 'fn', n: 'sign', a }; break;
+          case 'sign': return N(0);
+        }
+        return { t: '*', a: outer, b: da };
+      }
+    }
+    throw new Error('deriv ' + n.t);
+  }
+
+  function simp(n) {
+    switch (n.t) {
+      case 'num': case 'var': case 'const': return n;
+      case 'neg': {
+        const a = simp(n.a);
+        if (a.t === 'num') return N(-a.v);
+        if (a.t === 'neg') return a.a;
+        return { t: 'neg', a };
+      }
+      case '+': {
+        const a = simp(n.a), b = simp(n.b);
+        if (isN(a, 0)) return b;
+        if (isN(b, 0)) return a;
+        if (a.t === 'num' && b.t === 'num') return N(a.v + b.v);
+        if (b.t === 'neg') return { t: '-', a, b: b.a };
+        if (b.t === 'num' && b.v < 0) return { t: '-', a, b: N(-b.v) };
+        if (a.t === 'neg') return simp({ t: '-', a: b, b: a.a });
+        return { t: '+', a, b };
+      }
+      case '-': {
+        const a = simp(n.a), b = simp(n.b);
+        if (isN(b, 0)) return a;
+        if (isN(a, 0)) return simp({ t: 'neg', a: b });
+        if (a.t === 'num' && b.t === 'num') return N(a.v - b.v);
+        if (b.t === 'neg') return { t: '+', a, b: b.a };
+        if (b.t === 'num' && b.v < 0) return { t: '+', a, b: N(-b.v) };
+        return { t: '-', a, b };
+      }
+      case '*': {
+        let a = simp(n.a), b = simp(n.b);
+        if (isN(a, 0) || isN(b, 0)) return N(0);
+        if (isN(a, 1)) return b;
+        if (isN(b, 1)) return a;
+        if (a.t === 'num' && b.t === 'num') return N(a.v * b.v);
+        if (b.t === 'num') { const t = a; a = b; b = t; }
+        if (a.t === 'neg') return simp({ t: 'neg', a: { t: '*', a: a.a, b } });
+        if (b.t === 'neg') return simp({ t: 'neg', a: { t: '*', a, b: b.a } });
+        if (a.t === 'num' && b.t === '*' && b.a.t === 'num') return simp({ t: '*', a: N(a.v * b.a.v), b: b.b });
+        if (a.t === 'num' && a.v < 0) return { t: 'neg', a: simp({ t: '*', a: N(-a.v), b }) };
+        if (a.t === 'num' && b.t === '/' && b.a.t === 'num') return simp({ t: '/', a: N(a.v * b.a.v), b: b.b });
+        return { t: '*', a, b };
+      }
+      case '/': {
+        const a = simp(n.a), b = simp(n.b);
+        if (isN(b, 1)) return a;
+        if (isN(a, 0)) return N(0);
+        if (a.t === 'num' && b.t === 'num' && b.v !== 0) return N(a.v / b.v);
+        if (a.t === 'neg') return simp({ t: 'neg', a: { t: '/', a: a.a, b } });
+        // (k*A)/(k*B) -> A/B
+        const ka = a.t === '*' && a.a.t === 'num' ? a.a.v : a.t === 'num' ? a.v : null;
+        const kb = b.t === '*' && b.a.t === 'num' ? b.a.v : b.t === 'num' ? b.v : null;
+        if (ka !== null && kb !== null && ka !== 0 && kb !== 0 && ka === kb) {
+          const A = a.t === '*' ? a.b : N(1), B = b.t === '*' ? b.b : N(1);
+          return simp({ t: '/', a: A, b: B });
+        }
+        return { t: '/', a, b };
+      }
+      case '^': {
+        const a = simp(n.a), b = simp(n.b);
+        if (isN(b, 1)) return a;
+        if (isN(b, 0)) return N(1);
+        if (a.t === 'num' && b.t === 'num') { const v = Math.pow(a.v, b.v); if (isFinite(v)) return N(v); }
+        return { t: '^', a, b };
+      }
+      case 'fn': {
+        const a = simp(n.a);
+        if (n.n === 'ln' && a.t === 'const' && a.n === 'e') return N(1);
+        if (a.t === 'num') { const v = fnValue(n.n, a.v); if (isFinite(v) && Number.isInteger(v)) return N(v); }
+        return { t: 'fn', n: n.n, a };
+      }
+    }
+    throw new Error('simp ' + n.t);
+  }
+
+  // polynom -> pekny strom (x pred y, vyssie mocniny skor)
+  function polyToNode(p) {
+    const keys = Object.keys(p).filter(k => p[k] !== 0 && Math.abs(p[k]) > 1e-14 * maxAbs(p));
+    if (!keys.length) return N(0);
+    keys.sort((k1, k2) => {
+      const [i1, j1] = k1.split(',').map(Number), [i2, j2] = k2.split(',').map(Number);
+      return (i2 + j2) - (i1 + j1) || i2 - i1;
+    });
+    let node = null;
+    for (const k of keys) {
+      const [i, j] = k.split(',').map(Number);
+      const c = p[k];
+      let mono = null;
+      const mul = (m, f) => (m ? { t: '*', a: m, b: f } : f);
+      if (i) mono = mul(mono, i === 1 ? { t: 'var', n: 'x' } : { t: '^', a: { t: 'var', n: 'x' }, b: N(i) });
+      if (j) mono = mul(mono, j === 1 ? { t: 'var', n: 'y' } : { t: '^', a: { t: 'var', n: 'y' }, b: N(j) });
+      const ac = Math.abs(c);
+      const term = !mono ? N(ac) : ac === 1 ? mono : { t: '*', a: N(ac), b: mono };
+      if (!node) node = c < 0 ? { t: 'neg', a: term } : term;
+      else node = { t: c < 0 ? '-' : '+', a: node, b: term };
+    }
+    return node;
+  }
+  function maxAbs(p) { let m = 0; for (const k in p) m = Math.max(m, Math.abs(p[k])); return m; }
+
+  // pekny tvar: polynom kanonicky, inak zjednodusene a polynomialne casti kanonicky
+  function pretty(n) {
+    const s = simp(n);
+    if (s.t === 'num' || s.t === 'var' || s.t === 'const') return s;
+    const p = toPoly(s);
+    if (p) return polyToNode(pClean(p));
+    const rec = m => {
+      if (m.t === 'num' || m.t === 'var' || m.t === 'const') return m;
+      const q = (m.t === '+' || m.t === '-' || m.t === '*') ? toPoly(m) : null;
+      if (q && Object.keys(pClean(q)).length > 1) return polyToNode(pClean(q));
+      if (m.t === 'neg' || m.t === 'fn') return Object.assign({}, m, { a: rec(m.a) });
+      return Object.assign({}, m, { a: rec(m.a), b: rec(m.b) });
+    };
+    return simp(rec(s));
+  }
+
+  // ======================================================================
+  //  5. PRIPRAVA FUNKCIE
+  // ======================================================================
+  function prepare(src) {
+    const node = parse(src);
+    const poly = toPoly(node);
+    const fx = simp(deriv(node, 'x')), fy = simp(deriv(node, 'y'));
+    const fxx = simp(deriv(fx, 'x')), fxy = simp(deriv(fx, 'y')), fyy = simp(deriv(fy, 'y'));
+    const F = { src, node, poly: poly ? pClean(poly) : null };
+    F.nodes = { fx, fy, fxx, fxy, fyy };
+    F.show = { f: node, fx: pretty(fx), fy: pretty(fy), fxx: pretty(fxx), fxy: pretty(fxy), fyy: pretty(fyy) };
+    if (F.poly) {
+      const px = pDeriv(F.poly, 'x'), py = pDeriv(F.poly, 'y');
+      const pxx = pDeriv(px, 'x'), pxy = pDeriv(px, 'y'), pyy = pDeriv(py, 'y');
+      F.show = { f: node, fx: polyToNode(px), fy: polyToNode(py), fxx: polyToNode(pxx), fxy: polyToNode(pxy), fyy: polyToNode(pyy) };
+    }
+    const cf = compile(node), cx = compile(fx), cy = compile(fy), cxx = compile(fxx), cxy = compile(fxy), cyy = compile(fyy);
+    F.f = (x, y) => cf(x, y, 0);
+    F.gx = (x, y) => cx(x, y, 0);
+    F.gy = (x, y) => cy(x, y, 0);
+    F.hxx = (x, y) => cxx(x, y, 0);
+    F.hxy = (x, y) => cxy(x, y, 0);
+    F.hyy = (x, y) => cyy(x, y, 0);
+    return F;
+  }
+
+  function MethodError(msg) { this.message = msg; }
+  const bodTxt = P => '(' + P[0].toFixed(4) + '; ' + P[1].toFixed(4) + ')';
+  function val(v, P, co) {
+    if (!isFinite(v)) throw new MethodError('V bode ' + bodTxt(P) + ' ' + (co || 'funkcia') + ' nie je definovaná (delenie nulou alebo odmocnina zo záporného čísla). Skús iný štart.');
+    return v;
+  }
+
+  // ======================================================================
+  //  6. HLADANIE PO PRIAMKE  (ako najdi_gamu / po_priamke v Pythone)
+  // ======================================================================
+  function zlatyRez(phi, a, b, presnost) {
+    presnost = presnost || 1e-12;
+    const k = (Math.sqrt(5) - 1) / 2;
+    while (b - a > presnost * Math.max(1, Math.abs(a) + Math.abs(b))) {
+      const t1 = b - k * (b - a), t2 = a + k * (b - a);
+      if (phi(t1) < phi(t2)) b = t2; else a = t1;
+    }
+    return (a + b) / 2;
+  }
+  function presneMinimum(phi, dphi, a, b) {
+    const g = zlatyRez(phi, a, b);
+    const h = 1e-6 * (1 + Math.abs(g));
+    let lo = g - h, hi = g + h;
+    if (dphi(lo) < 0 && 0 < dphi(hi)) {
+      for (let it = 0; it < 200; it++) {
+        const s = (lo + hi) / 2;
+        if (dphi(s) < 0) lo = s; else hi = s;
+        if (hi - lo < 1e-15 * (1 + Math.abs(s))) break;
+      }
+      return (lo + hi) / 2;
+    }
+    return g;
+  }
+
+  // kladne = true: len gama > 0 (gradient); false: aj zaporne (Powell)
+  function lineSearch(F, P, u, kladne) {
+    const res = { P, u };
+    if (F.poly) {
+      const raw = pSubstLine(F.poly, P[0], u[0], P[1], u[1]);
+      const phi = uChop(raw);
+      res.typ = 'poly';
+      res.phi = phi;
+      res.dphi = uDeriv(phi);
+      if (!kladne && uDeg(phi) < 1) { res.konst = true; res.gama = 0; return res; }
+      res.krit = uCritical(phi);
+      let kand = res.krit.filter(c => c.typ === 'min' && (!kladne || c.g > 0));
+      if (!kand.length) {
+        const err = new MethodError('φ(γ) nemá minimum: funkcia ' + (kladne ? 'v smere S' : 'na tejto priamke') + ' klesá do −∞ (funkcia nemá minimum).');
+        err.res = res;
+        throw err;
+      }
+      kand.sort((p, q) => (round12(p.phi) - round12(q.phi)) || (kladne ? p.g - q.g : (Math.abs(p.g) - Math.abs(q.g)) || (q.g - p.g)));
+      res.vybrane = kand[0];
+      res.gama = kand[0].g;
+      return res;
+    }
+    // nie je polynom: zlaty rez + bisekcia phi'(gama) = 0
+    res.typ = 'num';
+    const phi = g => { const v = F.f(P[0] + g * u[0], P[1] + g * u[1]); return isFinite(v) ? v : Infinity; };
+    const dphi = g => {
+      const x = P[0] + g * u[0], y = P[1] + g * u[1];
+      const v = F.gx(x, y) * u[0] + F.gy(x, y) * u[1];
+      return isFinite(v) ? v : NaN;
+    };
+    let h = 1e-3;
+    if (!kladne && phi(-h) < phi(h)) h = -h;
+    while (phi(2 * h) < phi(h)) {
+      h *= 2;
+      if (Math.abs(h) > 1e8) {
+        const err = new MethodError('φ(γ) stále klesá: funkcia ' + (kladne ? 'v smere S' : 'na priamke') + ' nemá minimum.');
+        res.phiNode = substLineNode(F.node, P, u);
+        err.res = res;
+        throw err;
+      }
+    }
+    const a = kladne ? 0 : Math.min(-Math.abs(h), 2 * h), b = kladne ? 2 * h : Math.max(Math.abs(h), 2 * h);
+    res.interval = [a, b];
+    res.gama = presneMinimum(phi, dphi, a, b);
+    res.phiNode = substLineNode(F.node, P, u);
+    return res;
+  }
+  // f(P + gama*u) ako strom (na zobrazenie)
+  function substLineNode(n, P, u) {
+    const lin = (p, d) => (d === 0 ? N(p) : p === 0 ? (d === 1 ? { t: 'var', n: 'g' } : { t: '*', a: N(d), b: { t: 'var', n: 'g' } })
+      : { t: d < 0 ? '-' : '+', a: N(p), b: Math.abs(d) === 1 ? { t: 'var', n: 'g' } : { t: '*', a: N(Math.abs(d)), b: { t: 'var', n: 'g' } } });
+    const go = m => {
+      if (m.t === 'var') return m.n === 'x' ? lin(P[0], u[0]) : lin(P[1], u[1]);
+      if (m.t === 'num' || m.t === 'const') return m;
+      if (m.t === 'neg' || m.t === 'fn') return Object.assign({}, m, { a: go(m.a) });
+      return Object.assign({}, m, { a: go(m.a), b: go(m.b) });
+    };
+    return go(n);
+  }
+
+  // ======================================================================
+  //  7. METODY
+  // ======================================================================
+  function runGradient(F, o) {
+    const eps = o.eps, maxIt = o.maxIt;
+    let P = [Number(o.start[0]), Number(o.start[1])];
+    const out = { metoda: 'gradient', start: P.slice(), fStart: val(F.f(P[0], P[1]), P), iter: [], body: [P.slice()] };
+    try {
+      let k;
+      for (k = 0; k < maxIt; k++) {
+        const gx = val(F.gx(P[0], P[1]), P, 'derivácia'), gy = val(F.gy(P[0], P[1]), P, 'derivácia');
+        const dlzka = Math.sqrt(gx ** 2 + gy ** 2);
+        if (dlzka < eps) { out.stop = { typ: 'grad', hodnota: dlzka, k }; break; }
+        const S = [-gx / dlzka, -gy / dlzka];
+        let ls;
+        try { ls = lineSearch(F, P, S, true); }
+        catch (e) {
+          if (e instanceof MethodError) out.iter.push({ k: k + 1, P: P.slice(), fP: F.f(P[0], P[1]), grad: [gx, gy], norm: dlzka, S, ls: e.res, chyba: e.message });
+          throw e;
+        }
+        const g = ls.gama;
+        const Pn = [P[0] + g * S[0], P[1] + g * S[1]];
+        const it = { k: k + 1, P: P.slice(), fP: F.f(P[0], P[1]), grad: [gx, gy], norm: dlzka, S, ls, gama: g, Pn, fPn: val(F.f(Pn[0], Pn[1]), Pn) };
+        out.iter.push(it);
+        out.body.push(Pn.slice());
+        P = Pn;
+      }
+      if (!out.stop) out.stop = { typ: 'maxit', k: maxIt };
+      out.iteracie = out.stop.k;
+      out.bod = P; out.f = F.f(P[0], P[1]);
+      if (out.stop.typ === 'maxit') {
+        const gx = F.gx(P[0], P[1]), gy = F.gy(P[0], P[1]);
+        out.stop.hodnota = Math.sqrt(gx * gx + gy * gy);
+      }
+    } catch (e) { if (e instanceof MethodError) out.chyba = e.message; else throw e; }
+    return out;
+  }
+
+  function hessType(F, P) {
+    const a = F.hxx(P[0], P[1]), b = F.hxy(P[0], P[1]), d = F.hyy(P[0], P[1]);
+    const det = a * d - b * b;
+    if (det > 0 && a > 0) return { typ: 'MINIMUM', det, a };
+    if (det > 0 && a < 0) return { typ: 'MAXIMUM', det, a };
+    if (det < 0) return { typ: 'SEDLO', det, a };
+    return { typ: 'NEDÁ SA ROZHODNÚŤ', det, a };
+  }
+
+  function runNewton(F, o) {
+    const eps = o.eps, maxIt = o.maxIt;
+    let P = [Number(o.start[0]), Number(o.start[1])];
+    const out = { metoda: 'newton', start: P.slice(), fStart: val(F.f(P[0], P[1]), P), iter: [], body: [P.slice()] };
+    try {
+      for (let k = 0; k < maxIt; k++) {
+        const gx = val(F.gx(P[0], P[1]), P, 'derivácia'), gy = val(F.gy(P[0], P[1]), P, 'derivácia');
+        const dlzka = Math.sqrt(gx ** 2 + gy ** 2);
+        if (dlzka < eps) { out.stop = { typ: 'grad', hodnota: dlzka, k }; break; }
+        const a = val(F.hxx(P[0], P[1]), P, 'druhá derivácia'), b = val(F.hxy(P[0], P[1]), P, 'druhá derivácia');
+        const c = b, d = val(F.hyy(P[0], P[1]), P, 'druhá derivácia');
+        const det = a * d - b * c;
+        if (Math.abs(det) <= 1e-14 * (a * a + b * b + c * c + d * d)) {
+          out.iter.push({ k: k + 1, P: P.slice(), fP: F.f(P[0], P[1]), grad: [gx, gy], norm: dlzka, H: [a, b, c, d], det, singular: true });
+          throw new MethodError('det H = 0 v bode ' + bodTxt(P) + ': inverzná matica neexistuje, Newton sa tu nedá použiť.');
+        }
+        const mb = -b + 0, mc = -c + 0;
+        const sx = d * gx + mb * gy, sy = mc * gx + a * gy;
+        const krok = [sx / det, sy / det];
+        const Pn = [P[0] - krok[0], P[1] - krok[1]];
+        const posun = Math.hypot(P[0] - Pn[0], P[1] - Pn[1]);
+        out.iter.push({ k: k + 1, P: P.slice(), fP: F.f(P[0], P[1]), grad: [gx, gy], norm: dlzka, H: [a, b, c, d], det, mb, mc, sx, sy, krok, Pn, fPn: val(F.f(Pn[0], Pn[1]), Pn), posun });
+        out.body.push(Pn.slice());
+        P = Pn;
+        if (posun < eps) { out.stop = { typ: 'posun', hodnota: posun, k: k + 1 }; break; }
+      }
+      if (!out.stop) out.stop = { typ: 'maxit', k: maxIt };
+      out.iteracie = out.stop.k;
+      out.bod = P; out.f = F.f(P[0], P[1]);
+      out.hess = hessType(F, P);
+    } catch (e) { if (e instanceof MethodError) out.chyba = e.message; else throw e; }
+    return out;
+  }
+
+  function runPowell(F, o) {
+    const eps = o.eps, maxIt = o.maxIt;
+    let P0 = [Number(o.start[0]), Number(o.start[1])];
+    let u1 = (o.u1 || [1, 0]).map(Number), u2 = (o.u2 || [0, 1]).map(Number);
+    const out = { metoda: 'powell', start: P0.slice(), fStart: val(F.f(P0[0], P0[1]), P0), iter: [], body: [P0.slice()], u0: [u1.slice(), u2.slice()] };
+    try {
+      if (Math.hypot(...u1) === 0 || Math.hypot(...u2) === 0) throw new MethodError('Smer nesmie byť (0, 0).');
+      if (Math.abs(u1[0] * u2[1] - u1[1] * u2[0]) <= 1e-12 * Math.hypot(...u1) * Math.hypot(...u2))
+        throw new MethodError('Začiatočné smery u1 a u2 sú rovnobežné (determinant = 0). Metóda by sa hýbala len po jednej priamke.');
+      for (let k = 0; k < maxIt; k++) {
+        const it = { k: k + 1, P0: P0.slice(), fP0: F.f(P0[0], P0[1]), u1: u1.slice(), u2: u2.slice(), hladania: [] };
+        const krok = (P, u, meno, kam) => {
+          let ls;
+          try { ls = lineSearch(F, P, u, false); }
+          catch (e) {
+            if (e instanceof MethodError) { it.hladania.push({ meno, z: P.slice(), smer: u.slice(), ls: e.res, kam, chyba: e.message }); it.chyba = e.message; out.iter.push(it); }
+            throw e;
+          }
+          const Q = [P[0] + ls.gama * u[0], P[1] + ls.gama * u[1]];
+          it.hladania.push({ meno, z: P.slice(), smer: u.slice(), ls, gama: ls.gama, kam, Q, fQ: val(F.f(Q[0], Q[1]), Q) });
+          return Q;
+        };
+        const P1 = krok(P0, u1, 'u1', 'P1');
+        const P2 = krok(P1, u2, 'u2', 'P2');
+        const d = [P2[0] - P0[0], P2[1] - P0[1]];
+        it.d = d;
+        let P3;
+        if (Math.hypot(d[0], d[1]) < 1e-14) { P3 = P2; it.dNula = true; }
+        else {
+          P3 = krok(P2, d, 'd', 'P3');
+          if (Math.abs(u2[0] * d[1] - u2[1] * d[0]) <= 1e-12 * Math.hypot(...u2) * Math.hypot(...d)) it.rovnobezne = true;
+          else { u1 = u2; u2 = d; }
+        }
+        it.P1 = P1; it.P2 = P2; it.P3 = P3; it.fP3 = F.f(P3[0], P3[1]);
+        it.noveU = [u1.slice(), u2.slice()];
+        const posun = Math.hypot(P3[0] - P0[0], P3[1] - P0[1]);
+        it.posun = posun;
+        out.iter.push(it);
+        out.body.push(P3.slice());
+        P0 = P3;
+        if (posun < eps) { out.stop = { typ: 'posun', hodnota: posun, k: k + 1 }; break; }
+      }
+      if (!out.stop) out.stop = { typ: 'maxit', k: maxIt };
+      out.iteracie = out.stop.k;
+      out.bod = P0; out.f = F.f(P0[0], P0[1]);
+    } catch (e) { if (e instanceof MethodError) out.chyba = e.message; else throw e; }
+    return out;
+  }
+
+  function mensie(a, b) { return a < b - 1e-12 * Math.max(1, Math.abs(a), Math.abs(b)); }
+  function zorad(body) {
+    const r = [];
+    for (const p of body) {
+      let i = r.length;
+      while (i > 0 && mensie(p.f, r[i - 1].f)) i--;
+      r.splice(i, 0, p);
+    }
+    return r;
+  }
+
+  function runNM(F, o) {
+    const eps = o.eps, maxIt = o.maxIt;
+    const al = Number(o.alfa), ga = Number(o.gama), rh = Number(o.rho), si = Number(o.sigma);
+    const rozdiel = (P, Q) => [P[0] - Q[0], P[1] - Q[1]];
+    const posun = (P, k, s) => [P[0] + k * s[0], P[1] + k * s[1]];
+    const fv = P => ({ P, f: val(F.f(P[0], P[1]), P) });
+    const out = { metoda: 'nm', iter: [], trojuholniky: [], kontrakcia: o.kontrakcia, koef: { al, ga, rh, si } };
+    try {
+      let body = o.body.map(p => fv([Number(p[0]), Number(p[1])]));
+      out.startBody = body.map(b => ({ P: b.P.slice(), f: b.f }));
+      let k;
+      for (k = 0; k < maxIt; k++) {
+        const pred = body.map(b => ({ P: b.P.slice(), f: b.f }));
+        body = zorad(body);
+        const [B, G, W] = body;
+        out.trojuholniky.push([B.P, G.P, W.P]);
+        const d = Math.max(Math.hypot(B.P[0] - G.P[0], B.P[1] - G.P[1]), Math.hypot(B.P[0] - W.P[0], B.P[1] - W.P[1]));
+        if (d < eps) { out.stop = { typ: 'd', hodnota: d, k }; break; }
+        const it = { k: k + 1, pred, B, G, W, d };
+        const M = [(B.P[0] + G.P[0]) / 2, (B.P[1] + G.P[1]) / 2];
+        const R = posun(M, al, rozdiel(M, W.P));
+        const fR = val(F.f(R[0], R[1]), R);
+        Object.assign(it, { M, R, fR });
+        if (mensie(fR, B.f)) {
+          it.pripad = 1;
+          const E = posun(M, ga, rozdiel(R, M));
+          const fE = val(F.f(E[0], E[1]), E);
+          Object.assign(it, { E, fE });
+          if (mensie(fE, fR)) { body[2] = { P: E, f: fE }; it.krok = 'expanzia E'; it.novy = 'E'; }
+          else { body[2] = { P: R, f: fR }; it.krok = 'reflexia R (E nepomohol)'; it.novy = 'R'; }
+        } else if (mensie(fR, G.f)) {
+          it.pripad = 2;
+          body[2] = { P: R, f: fR }; it.krok = 'reflexia R'; it.novy = 'R';
+        } else {
+          it.pripad = 3;
+          const C1 = posun(M, rh, rozdiel(W.P, M));
+          const fC1 = val(F.f(C1[0], C1[1]), C1);
+          Object.assign(it, { C1, fC1 });
+          let C = C1, fC = fC1, meno = 'C1';
+          if (o.kontrakcia === 'prednaska') {
+            const C2 = posun(M, rh, rozdiel(R, M));
+            const fC2 = val(F.f(C2[0], C2[1]), C2);
+            Object.assign(it, { C2, fC2 });
+            if (mensie(fC2, fC1)) { C = C2; fC = fC2; meno = 'C2'; }
+          }
+          it.C = C; it.fC = fC; it.meno = meno;
+          if (mensie(fC, W.f)) { body[2] = { P: C, f: fC }; it.krok = 'kontrakcia ' + meno; it.novy = meno; }
+          else {
+            const S = posun(B.P, si, rozdiel(W.P, B.P));
+            const M2 = posun(B.P, si, rozdiel(G.P, B.P));
+            body = [B, fv(M2), fv(S)];
+            Object.assign(it, { S, M2, fS: body[2].f, fM2: body[1].f });
+            it.krok = 'zmrštenie'; it.novy = 'S';
+          }
+        }
+        it.po = body.map(b => ({ P: b.P.slice(), f: b.f }));
+        out.iter.push(it);
+      }
+      if (!out.stop) { body = zorad(body); out.stop = { typ: 'maxit', k: maxIt }; out.trojuholniky.push(body.map(b => b.P)); }
+      out.iteracie = out.stop.k;
+      out.bod = body[0].P; out.f = body[0].f;
+      out.body = out.trojuholniky.map(t => t[0]);
+    } catch (e) { if (e instanceof MethodError) out.chyba = e.message; else throw e; }
+    return out;
+  }
+
+  const api = {
+    ParseError, MethodError, tokenize, parse, compile, toPoly, polyToNode, pretty, simp, deriv,
+    prepare, runGradient, runNewton, runPowell, runNM, uEval, uRoots, uCritical, hessType, pClean
+  };
+  root.OptEngine = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+window.SEED_DATA = {"priklady": [{"id": "G1", "metoda": "gradient", "funkcia": "x**2 + 2*y**2", "start": [3, 1], "pasca": "zakladny priklad z hodiny (gradient (6, 4), ||grad|| = odmocnina z 52)"}, {"id": "G2", "metoda": "gradient", "funkcia": "x**2 - 4*x + y**2 - y - x*y", "start": [0, 0], "pasca": "clen -x*y (obe derivacie zavisia od x aj y)"}, {"id": "G3", "metoda": "gradient", "funkcia": "(x - 1)**2 + 10*(y + 2)**2", "start": [-2.5, 0.5], "pasca": "desatinny a zaporny start, uzke udolie -> cik-cak, vela iteracii"}, {"id": "G4", "metoda": "gradient", "funkcia": "x**4/4 + x**2/2 + y**2/2", "start": [1, 1], "pasca": "phi(gama) je polynom 4. stupna, phi' je kubicka rovnica"}, {"id": "G5", "metoda": "gradient", "funkcia": "x**3 + y**3 - 3*x*y", "start": [2, 1.5], "pasca": "kubicka funkcia: phi' ma 2 korene, jeden je MAXIMUM phi -> treba vybrat minimum"}, {"id": "G6", "metoda": "gradient", "funkcia": "x**4 + y**4", "start": [1, 2], "pasca": "plocha funkcia, viacnasobny koren phi' (nroots/zaokruhlenie)"}, {"id": "G7", "metoda": "gradient", "funkcia": "(x**2 + y - 11)**2 + (x + y**2 - 7)**2", "start": [0, 0], "pasca": "Himmelblau: 4 minima, phi ma viac lokalnych minim -> ktore?"}, {"id": "G8", "metoda": "gradient", "funkcia": "sqrt(x**2 + 1) + (y - 2)**2", "start": [3, 0], "pasca": "nie je polynom -> phi' = 0 sa neda vyriesit vzorcom (numericky)"}, {"id": "G9", "metoda": "gradient", "funkcia": "exp(x**2 + y**2) - 2*x", "start": [1, 1], "pasca": "exponenciala, nie je polynom"}, {"id": "G10", "metoda": "gradient", "funkcia": "x**2 + y**2", "start": [0, 0], "pasca": "start uz je v minime -> 0 iteracii (ziadne delenie nulou!)"}, {"id": "G11", "metoda": "gradient", "funkcia": "x**3 + y**2", "start": [1, 1], "pasca": "funkcia NEMA minimum -> kod ma zahlasit chybu, nie vypisat nezmysel"}, {"id": "G12", "metoda": "gradient", "funkcia": "(1 - x)**2 + 100*(y - x**2)**2", "start": [-1.2, 1], "max_it": 100, "pasca": "Rosenbrock: steepest je extremne pomaly -> po 100 iteraciach este nie je v (1, 1)"}, {"id": "N1", "metoda": "newton", "funkcia": "x**2 + 2*y**2", "start": [2, 2], "pasca": "kvadraticka funkcia -> minimum za 1 krok"}, {"id": "N2", "metoda": "newton", "funkcia": "x**2 - 4*x + y**2 - y - x*y", "start": [0, 0], "pasca": "H ma nenulove b = c = -1 (vymenit a<->d, zmenit znamienka b, c)"}, {"id": "N3", "metoda": "newton", "funkcia": "x**4/4 + x**2/2 + y**2/2", "start": [1, 1], "pasca": "priklad z cvicenia 4"}, {"id": "N4", "metoda": "newton", "funkcia": "(1 - x)**2 + 100*(y - x**2)**2", "start": [-1.2, 1], "pasca": "Rosenbrock (znamy X1 = (-1.1753, 1.3807))"}, {"id": "N5", "metoda": "newton", "funkcia": "(x**2 + y - 11)**2 + (x + y**2 - 7)**2", "start": [0, 0], "pasca": "Newton skonci v MAXIME (-0.2708, -0.9230), nie v minime!"}, {"id": "N6", "metoda": "newton", "funkcia": "x**2 - y**2", "start": [1, 1], "pasca": "Newton skonci v SEDLE (0, 0)"}, {"id": "N7", "metoda": "newton", "funkcia": "x**3 + y**3 - 3*x*y", "start": [2, 2], "pasca": "kubicka funkcia, minimum (1, 1)"}, {"id": "N8", "metoda": "newton", "funkcia": "exp(x**2 + y**2) - 2*x", "start": [1, 1], "pasca": "exponenciala"}, {"id": "N9", "metoda": "newton", "funkcia": "x**4 + y**2", "start": [0, 1], "pasca": "det H = 0 v starte -> H^-1 neexistuje, kod ma zahlasit chybu"}, {"id": "N10", "metoda": "newton", "funkcia": "x**4 + y**4", "start": [1, 1], "pasca": "det H -> 0 pri minime, Newton je tu len linearny (x -> 2x/3)"}, {"id": "P1", "metoda": "powell", "funkcia": "x**2 - 4*x + y**2 - y - x*y", "start": [0, 0], "pasca": "kvadraticka -> presne minimum (3, 2) po 2 iteraciach"}, {"id": "P2", "metoda": "powell", "funkcia": "x**2 + 2*y**2", "start": [3, 1], "pasca": "minimum najde uz P2, smer d da gama = 0"}, {"id": "P3", "metoda": "powell", "funkcia": "(x - 1)**2 + (y - 2)**2 + x*y", "start": [5, 5], "pasca": "ZAPORNE gama (minimum je 'za chrbtom')"}, {"id": "P4", "metoda": "powell", "funkcia": "x**4/4 + x**2/2 + y**2/2", "start": [1, 1], "pasca": "phi je polynom 4. stupna"}, {"id": "P5", "metoda": "powell", "funkcia": "(1 - x)**2 + 100*(y - x**2)**2", "start": [-1.2, 1], "pasca": "na priamke y = 1 su 2 lokalne minima phi -> berie sa to s mensim phi (x = 1)"}, {"id": "P6", "metoda": "powell", "funkcia": "(x**2 + y - 11)**2 + (x + y**2 - 7)**2", "start": [0, 0], "pasca": "Himmelblau: ktore zo 4 minim (zavisi od vyberu minima na priamke)"}, {"id": "P7", "metoda": "powell", "funkcia": "sqrt(x**2 + 1) + (y - 2)**2", "start": [3, 0], "pasca": "nie je polynom (numericke hladanie po priamke)"}, {"id": "P8", "metoda": "powell", "funkcia": "x**3 + y**3 - 3*x*y", "start": [2, 2], "pasca": "kubicka: phi' ma koren s maximom aj minimom, minimum je pri zapornom gama"}, {"id": "P9", "metoda": "powell", "funkcia": "x**2 + y**2", "start": [0, 0], "pasca": "start v minime -> d = (0, 0), ziadne delenie nulou"}, {"id": "P10", "metoda": "powell", "funkcia": "x**2 + y**2 + x*y - 3*y", "start": [0, 0], "pasca": "v starte je df/dx = 0 -> gama1 = 0, d je rovnobezny s u2; ked sa smery posunu, metoda sa ZASEKNE v (0, 1.5) namiesto minima (-1, 2) -> smery nemenit"}, {"id": "P11", "metoda": "powell", "funkcia": "x**2 - 4*x + y**2 - y - x*y", "start": [2, 0], "pasca": "ta ista pasca ako P10 (df/dx(2, 0) = 0), zasekol by sa v (2, 1.5) namiesto (3, 2)"}, {"id": "M1", "metoda": "nm", "funkcia": "x**2 + y**2 + x - 2*y - x*y + 2", "body": [[1.2, 0], [0, 0.8], [0, 0]], "kontrakcia": "cvicenie", "pasca": "slajd 27 z cvicenia (vzor zapoctu), kontrakcia len C1"}, {"id": "M2", "metoda": "nm", "funkcia": "x**2 - 4*x + y**2 - y - x*y", "body": [[0, 0], [1.2, 0], [0, 0.8]], "kontrakcia": "prednaska", "pasca": "vzorovy priklad z prednasky 4 (C1 aj C2)"}, {"id": "M3", "metoda": "nm", "funkcia": "x**2 - 4*x + y**2 - y - x*y", "body": [[0, 0], [1.2, 0], [0, 0.8]], "kontrakcia": "cvicenie", "pasca": "ten isty priklad, verzia z cvicenia -> porovnaj s M2, kde sa rozidu"}, {"id": "M4", "metoda": "nm", "funkcia": "x**2 - 4*x + y**2 - y - x*y", "body": [[0, 1], [1, 1], [0, 1.5]], "kontrakcia": "cvicenie", "pasca": "priklad z fotky cvicenia 4"}, {"id": "M5", "metoda": "nm", "funkcia": "x**2 + 2*y**2", "body": [[2, 2], [2, 1], [1, 2]], "kontrakcia": "cvicenie", "pasca": "priklad z cvicenia 4 (A, B, C)"}, {"id": "M6", "metoda": "nm", "funkcia": "x**2 + y**2", "body": [[-1, 3], [0, 4], [1, 2]], "kontrakcia": "prednaska", "pasca": "v 2. iteracii je lepsi C2 nez C1"}, {"id": "M7", "metoda": "nm", "funkcia": "x**2 + y**2", "body": [[-1, 3], [0, 4], [1, 2]], "kontrakcia": "cvicenie", "pasca": "ten isty, len C1 -> ina cesta nez M6"}, {"id": "M8", "metoda": "nm", "funkcia": "x**4 - 3*x**2 + y**2", "body": [[-1.3, 0.2], [0.8, 0.7], [-0.5, -0.2]], "kontrakcia": "cvicenie", "pasca": "ZMRSTENIE hned v 1. iteracii"}, {"id": "M9", "metoda": "nm", "funkcia": "x**2 + y**2", "body": [[1, 0], [0, 1], [-1, 0]], "kontrakcia": "cvicenie", "pasca": "ROVNOST: vsetky 3 body maju f = 1 -> poradie podla zadania"}, {"id": "M10", "metoda": "nm", "funkcia": "x**2 + y**2", "body": [[1.1, -0.7], [-0.4, 0.7], [2.0, -0.1]], "kontrakcia": "cvicenie", "pasca": "ZAOKRUHLENIE: presne f(R) = f(G) = 1.7, ale v pocitaci f(R) = 1.6999999999999995 a f(G) = 1.7000000000000002 -> naivny kod (<) spravi reflexiu namiesto kontrakcie"}, {"id": "M11", "metoda": "nm", "funkcia": "x**2 + y**2", "body": [[0.4, 1.2], [1.1, 0.2], [0.5, 1.9]], "kontrakcia": "cvicenie", "pasca": "ZAOKRUHLENIE: presne f(R) = f(B) = 1.25, ale v pocitaci f(R) = 1.25 a f(B) = 1.2500000000000002 -> naivny kod (<) skusi expanziu namiesto reflexie"}, {"id": "M12", "metoda": "nm", "funkcia": "x**2 - 4*x + y**2 - y - x*y", "body": [[0, 0], [1.2, 0], [0, 0.8]], "kontrakcia": "cvicenie", "alfa": 1, "gama": 3, "rho": 0.25, "sigma": 0.5, "pasca": "ine koeficienty (gama = 3, rho = 0.25) -> vseobecne vzorce M + k*(smer)"}, {"id": "M13", "metoda": "nm", "funkcia": "(1 - x)**2 + 100*(y - x**2)**2", "body": [[-1.2, 1], [-0.7, 1], [-1.2, 1.5]], "kontrakcia": "cvicenie", "pasca": "Rosenbrock, dlhy beh (vela kontrakcii aj expanzii)"}], "vysledky": {"G1": {"bod": [0.0002575401, 8.58467e-05], "iteracie": 8, "f": 8.11e-08}, "G2": {"bod": [2.9998571678, 1.9995000874], "iteracie": 11, "f": -6.9999998011}, "G3": {"bod": [0.9998716908, -2.0000017963], "iteracie": 11, "f": 1.65e-08}, "G4": {"bod": [-4.01e-08, 8.03e-08], "iteracie": 3, "f": 0.0}, "G5": {"bod": [1.0001426362, 1.0000815042], "iteracie": 12, "f": -0.9999999539}, "G6": {"bod": [0.0155170556, 0.0310341112], "iteracie": 4, "f": 9.856e-07}, "G7": {"bod": [2.9999920076, 2.0000114754], "iteracie": 13, "f": 2.8e-09}, "G8": {"bod": [0.0001303019, 1.9997252995], "iteracie": 6, "f": 1.0000000839}, "G9": {"bod": [0.6528214093, 0.0001557384], "iteracie": 7, "f": 0.2257471768}, "G10": {"bod": [0.0, 0.0], "iteracie": 0, "f": 0.0}, "G11": {"chyba": "CHYBA: phi(gama) nema minimum - funkcia v smere S klesa do -nekonecna (funkcia nema minimum)."}, "G12": {"bod": [1.4309178309, 2.0483370797], "iteracie": 100, "f": 0.1857559882}, "N1": {"bod": [0.0, 0.0], "iteracie": 1, "f": 0.0}, "N2": {"bod": [3.0, 2.0], "iteracie": 1, "f": -7.0}, "N3": {"bod": [3.317e-07, 0.0], "iteracie": 4, "f": 0.0}, "N4": {"bod": [0.9999956957, 0.9999913913], "iteracie": 5, "f": 0.0}, "N5": {"bod": [-0.2708463857, -0.9230282809], "iteracie": 3, "f": 181.6165215217}, "N6": {"bod": [0.0, 0.0], "iteracie": 1, "f": 0.0}, "N7": {"bod": [1.000015259, 1.000015259], "iteracie": 4, "f": -0.9999999993}, "N8": {"bod": [0.6529190194, 2.732e-07], "iteracie": 6, "f": 0.2257471128}, "N9": {"chyba": "CHYBA: det H = 0, inverzna matica neexistuje -> Newton sa neda pouzit."}, "N10": {"bod": [0.0390184423, 0.0390184423], "iteracie": 8, "f": 4.6356e-06}, "P1": {"bod": [3.0, 2.0], "iteracie": 3, "f": -7.0}, "P2": {"bod": [0.0, 0.0], "iteracie": 2, "f": 0.0}, "P3": {"bod": [0.0, 2.0], "iteracie": 3, "f": 1.0}, "P4": {"bod": [0.0, 0.0], "iteracie": 2, "f": 0.0}, "P5": {"bod": [1.0, 1.0], "iteracie": 2, "f": 0.0}, "P6": {"bod": [3.5844283403, -1.848126527], "iteracie": 3, "f": 0.0}, "P7": {"bod": [0.0, 2.0], "iteracie": 2, "f": 1.0}, "P8": {"bod": [1.0, 1.0], "iteracie": 4, "f": -1.0}, "P9": {"bod": [0.0, 0.0], "iteracie": 1, "f": 0.0}, "P10": {"bod": [-1.0, 2.0], "iteracie": 3, "f": -3.0}, "P11": {"bod": [3.0, 2.0], "iteracie": 3, "f": -7.0}, "M1": {"bod": [0.0001882199, 1.000443844], "iteracie": 26, "f": 1.0000001489}, "M2": {"bod": [2.9998525596, 1.9998052069], "iteracie": 31, "f": -6.999999969}, "M3": {"bod": [3.0002589901, 2.0004202404], "iteracie": 31, "f": -6.9999998652}, "M4": {"bod": [3.0, 2.0], "iteracie": 37, "f": -7.0}, "M5": {"bod": [-0.0004261777, -4.0536e-06], "iteracie": 28, "f": 1.817e-07}, "M6": {"bod": [-0.0002265113, 0.0002309248], "iteracie": 28, "f": 1.046e-07}, "M7": {"bod": [0.0002028495, 0.0002288493], "iteracie": 31, "f": 9.35e-08}, "M8": {"bod": [-1.2248502994, -5.72939e-05], "iteracie": 25, "f": -2.24999993}, "M9": {"bod": [-6.53599e-05, -0.0001205874], "iteracie": 27, "f": 1.88e-08}, "M10": {"bod": [0.0002657044, 4.97079e-05], "iteracie": 33, "f": 7.31e-08}, "M11": {"bod": [-0.0002689863, 0.0001522828], "iteracie": 31, "f": 9.55e-08}, "M12": {"bod": [3.0003184207, 1.9985523269], "iteracie": 22, "f": -6.9999973419}, "M13": {"bod": [1.0001840007, 1.0003814326], "iteracie": 79, "f": 5.18e-08}}};
+</script>
+<script>
+(function () {
+  'use strict';
+  const E = window.OptEngine;
+  const SEED = window.SEED_DATA || { priklady: [], vysledky: {} };
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const state = { method: 'gradient', F: null, out: null, k: 0, exId: '', exSnap: '', zlomky: true, userK: 0 };
+
+  // =====================================================================
+  //  CISLA
+  // =====================================================================
+  const SUPD = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '-': '⁻' };
+  const supStr = e => String(e).split('').map(c => SUPD[c] || c).join('');
+  function fmt(v, d) {
+    d = d === undefined ? 6 : d;
+    if (v === Infinity) return '∞';
+    if (v === -Infinity) return '−∞';
+    if (!isFinite(v)) return 'nedef.';
+    const a = Math.abs(v);
+    if (a < 1e-12) return '0';
+    if (a >= 1e7 || a < 1e-6) {
+      let e = Math.floor(Math.log10(a)), m = v / Math.pow(10, e);
+      if (Math.abs(m) >= 9.9995) { m /= 10; e += 1; }
+      return m.toFixed(3).replace(/\.?0+$/, '').replace('.', ',').replace('-', '−') + '·10' + supStr(e);
+    }
+    let s = v.toFixed(d);
+    if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    if (s === '-0') s = '0';
+    return s.replace('.', ',').replace('-', '−');
+  }
+  function fracOf(v, maxDen) {
+    if (!isFinite(v) || Number.isInteger(v)) return null;
+    const sg = v < 0 ? -1 : 1, x = Math.abs(v);
+    let h0 = 0, h1 = 1, k0 = 1, k1 = 0, b = x;
+    for (let i = 0; i < 32; i++) {
+      const ai = Math.floor(b);
+      const h2 = ai * h1 + h0, k2 = ai * k1 + k0;
+      if (k2 > maxDen) break;
+      h0 = h1; h1 = h2; k0 = k1; k1 = k2;
+      if (Math.abs(x - h1 / k1) <= 1e-9 * Math.max(1, x)) return k1 > 1 ? [sg * h1, k1] : null;
+      const r = b - ai;
+      if (r < 1e-15) break;
+      b = 1 / r;
+    }
+    return null;
+  }
+  // kratke desatinne cisla (1,2; 0,25) nechavam desatinne, zlomok len pre 12/17, 1/3 ...
+  const niceFrac = (v, maxDen) => (Math.abs(v * 1000 - Math.round(v * 1000)) < 1e-7 * Math.max(1, Math.abs(v)) ? null : fracOf(v, maxDen));
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const fracHTML = (p, q) => `<span class="fr"><span class="nu">${Math.abs(p)}</span><span class="de">${q}</span></span>`;
+
+  // hodnota ako vysledok (modre pero), pri zlomku aj desatinne cislo
+  function V(v) {
+    const fr = state.zlomky ? niceFrac(v, 1000) : null;
+    if (fr) return `<span class="nm m">${fr[0] < 0 ? '−' : ''}${fracHTML(fr[0], fr[1])}</span><span class="hint">≈ ${fmt(v)}</span>`;
+    return `<span class="nm">${fmt(v)}</span>`;
+  }
+  function Pt(P) { return `<span class="nm nw">(${fmt(P[0])}; ${fmt(P[1])})</span>`; }
+  const sb = (s, k) => `<span class="m"><i class="v">${s}</i><sub>${k}</sub></span>`;
+  const mv = s => `<span class="m"><i class="v">${s}</i></span>`;
+  const EQ = '<span class="o">=</span>';
+
+  // =====================================================================
+  //  MATEMATIKA -> HTML  (zlomky pod sebou, mocniny hore, odmocnina so ciarou)
+  // =====================================================================
+  const atom = (h, kind) => ({ h, p: 5, lead: kind, trail: kind, neg: false });
+  const par = r => ({ h: `<span class="pa">(</span>${r.h}<span class="pa">)</span>`, p: 5, lead: 'paren', trail: 'paren', neg: false });
+  function numR(v, o) {
+    if (v < 0) { const a = numR(-v, o); return { h: '−' + a.h, p: 2, lead: 'op', trail: 'num', neg: true }; }
+    const fr = (state.zlomky && !o.dec) ? niceFrac(v, 200) : null;
+    if (fr) return { h: fracHTML(fr[0], fr[1]), p: 5, lead: 'num', trail: 'num', neg: false };
+    return atom(fmt(v), 'num');
+  }
+  function R(n, o) {
+    switch (n.t) {
+      case 'num':
+        if (n.txt !== undefined) return atom(n.txt.replace('.', ','), 'num');
+        return numR(n.v, o);
+      case 'const': return atom(`<i class="c">${n.n}</i>`, 'var');
+      case 'var': {
+        if (o.sub && o.sub[n.n] !== undefined) {
+          const v = o.sub[n.n];
+          const r = numR(v, o);
+          return v < 0 ? Object.assign(par(r), { h: `<span class="sv">${par(r).h}</span>` }) : Object.assign(r, { h: `<span class="sv">${r.h}</span>` });
+        }
+        return atom(`<i class="v">${n.n === 'g' ? 'γ' : n.n}</i>`, 'var');
+      }
+      case 'neg': {
+        let a = R(n.a, o);
+        if (a.p === 1 || a.neg) a = par(a);
+        return { h: '−' + a.h, p: 2, lead: 'op', trail: a.trail, neg: true };
+      }
+      case '+': case '-': {
+        const a = R(n.a, o);
+        let b = R(n.b, o);
+        if (n.t === '+' && b.neg) b = par(b);
+        if (n.t === '-' && (b.p === 1 || b.neg)) b = par(b);
+        return { h: `${a.h}<span class="o">${n.t === '+' ? '+' : '−'}</span><wbr>${b.h}`, p: 1, lead: a.lead, trail: b.trail, neg: a.neg };
+      }
+      case '*': {
+        let a = R(n.a, o), b = R(n.b, o);
+        if (a.p === 1) a = par(a);
+        if (b.p === 1 || b.neg) b = par(b);
+        const jux = !o.sub && ((a.trail === 'num' && ['var', 'fn', 'paren'].includes(b.lead)) ||
+          (['var', 'pow', 'paren'].includes(a.trail) && ['var', 'fn', 'paren'].includes(b.lead)));
+        return { h: a.h + (jux ? '' : '<span class="o dot">·</span>') + b.h, p: 2, lead: a.lead, trail: b.trail, neg: a.neg };
+      }
+      case '/':
+        return { h: `<span class="fr"><span class="nu">${R(n.a, o).h}</span><span class="de">${R(n.b, o).h}</span></span>`, p: 5, lead: 'frac', trail: 'frac', neg: false };
+      case '^': {
+        let base = R(n.a, o);
+        if (base.p < 5 || base.neg || base.lead === 'frac' || (n.a.t === 'num' && n.a.v < 0)) base = par(base);
+        const ex = R(n.b, Object.assign({}, o));
+        return { h: `${base.h}<sup>${ex.h}</sup>`, p: 4, lead: base.lead, trail: 'pow', neg: false };
+      }
+      case 'fn': {
+        const a = R(n.a, o);
+        switch (n.n) {
+          case 'sqrt': return { h: `<span class="rt"><span class="rs">√</span><span class="ra">${a.h}</span></span>`, p: 5, lead: 'fn', trail: 'paren', neg: false };
+          case 'cbrt': return { h: `<span class="rt"><span class="ri">3</span><span class="rs">√</span><span class="ra">${a.h}</span></span>`, p: 5, lead: 'fn', trail: 'paren', neg: false };
+          case 'exp': return { h: `<i class="c">e</i><sup>${a.h}</sup>`, p: 4, lead: 'var', trail: 'pow', neg: false };
+          case 'abs': return { h: `|${a.h}|`, p: 5, lead: 'paren', trail: 'paren', neg: false };
+          default: return { h: `<span>${n.n === 'sign' ? 'sgn' : n.n}</span><span class="pa">(</span>${a.h}<span class="pa">)</span>`, p: 5, lead: 'fn', trail: 'paren', neg: false };
+        }
+      }
+    }
+    return atom('?', 'var');
+  }
+  const MH = (n, o) => `<span class="m">${R(n, o || {}).h}</span>`;
+  const N = v => ({ t: 'num', v });
+  const G = { t: 'var', n: 'g' };
+  // polynom v gama (koeficienty od g^0)
+  function uNode(c) {
+    let node = null;
+    let mx = 0;
+    for (let k = 0; k < c.length; k++) mx = Math.max(mx, Math.abs(c[k]));
+    for (let k = c.length - 1; k >= 0; k--) {
+      const v = c[k];
+      if (v === 0 || Math.abs(v) < 1e-14 * mx) continue;
+      const mono = k === 0 ? null : k === 1 ? G : { t: '^', a: G, b: N(k) };
+      const av = Math.abs(v);
+      const term = !mono ? N(av) : av === 1 ? mono : { t: '*', a: N(av), b: mono };
+      if (!node) node = v < 0 ? { t: 'neg', a: term } : term;
+      else node = { t: v < 0 ? '-' : '+', a: node, b: term };
+    }
+    return node || N(0);
+  }
+  // priamka p + d*gama
+  function linNode(p, d) {
+    return E.simp({ t: '+', a: N(p), b: { t: '*', a: N(d), b: G } });
+  }
+
+  // =====================================================================
+  //  POMOCNE CASTI LISTOV
+  // =====================================================================
+  const step = (label, body, cls) => `<li class="st ${cls || ''}"><div class="lbl">${label}</div><div class="bd">${body}</div></li>`;
+  const line = (...p) => `<div class="ln">${p.join(' ')}</div>`;
+  const lineS = (...p) => `<div class="ln small">${p.join(' ')}</div>`;
+  const note = (t, k) => `<div class="note ${k || ''}">${t}</div>`;
+  const sqrtH = h => `<span class="rt"><span class="rs">√</span><span class="ra">${h}</span></span>`;
+  const mat = (a, b, c, d) => `<span class="mat m"><span class="br">[</span><span class="cells"><span>${a}</span><span>${b}</span><span>${c}</span><span>${d}</span></span><span class="br">]</span></span>`;
+  const vec = (a, b) => `<span class="vec m"><span class="br">(</span><span class="cells"><span>${a}</span><span>${b}</span></span><span class="br">)</span></span>`;
+  const subXY = P => ({ sub: { x: P[0], y: P[1] } });
+  function fLine(F, P, name) {
+    return line(`<span class="m"><i>f</i></span>${name ? `<span class="m">(${name})</span>` : `(${fmt(P[0])}; ${fmt(P[1])})`}`, EQ, MH(F.node, subXY(P)), EQ, V(F.f(P[0], P[1])));
+  }
+
+  // hladanie po priamke, ako na papieri
+  function lsHTML(F, ls, P, u, kladne, gName) {
+    let h = '';
+    h += line(mv('x'), EQ, MH(linNode(P[0], u[0])), '&nbsp;&nbsp;&nbsp;', mv('y'), EQ, MH(linNode(P[1], u[1])));
+    if (!ls) return h;
+    const fSub = MH(E.simp(substGamma(F.node, P, u)));
+    if (ls.typ === 'poly') {
+      h += line(`<span class="m"><i>φ</i>(<i>γ</i>)</span>`, EQ, `<span class="m"><i>f</i></span>(<span class="m"><i>x</i></span>, <span class="m"><i>y</i></span>)`, EQ, fSub);
+      h += line('', EQ, MH(uNode(ls.phi)));
+      const fP = F.f(P[0], P[1]);
+      h += note(`Kontrola: konštantný člen ${fmt(ls.phi[0] || 0)} = f v bode, z ktorého idem (${fmt(fP)}) <span class="dec ok">✓</span>`);
+      if (ls.konst) { h += note('φ(γ) je na tejto priamke konštantná, nie je kam ísť, preto γ = 0.', 'amber'); return h; }
+      h += line(`<span class="m"><i>φ</i>′(<i>γ</i>)</span>`, EQ, MH(uNode(ls.dphi)), EQ, '<span class="m">0</span>');
+      if (ls.dphi.length === 2) {
+        h += line(mv('γ'), EQ, MH({ t: '/', a: N(-ls.dphi[0]), b: N(ls.dphi[1]) }, { dec: true }), EQ, V(ls.gama));
+      } else if (ls.krit) {
+        const nazov = { min: 'minimum φ', max: 'maximum φ', inflex: 'inflexný bod φ' };
+        h += note('φ′(γ) = 0 má viac koreňov. Beriem len tie, kde má φ minimum' + (kladne ? ' a γ > 0' : '') + '; z nich to s najmenším φ.');
+        for (const c of ls.krit) {
+          const zvol = ls.vybrane && c === ls.vybrane;
+          const preco = c.typ !== 'min' ? 'nie je minimum' : (kladne && c.g <= 0) ? 'γ ≤ 0, ideme v smere S' : zvol ? 'vyberám' : 'väčšie φ';
+          h += lineS(mv('γ'), EQ, `<span class="${zvol ? 'nm' : ''}">${fmt(c.g)}</span>`, `<span class="note">→ ${nazov[c.typ]}, φ = ${fmt(c.phi)}</span>`, zvol ? '<span class="dec ok">✓ ' + preco + '</span>' : `<span class="dec red">✗ ${preco}</span>`);
+        }
+      }
+    } else {
+      h += line(`<span class="m"><i>φ</i>(<i>γ</i>)</span>`, EQ, fSub);
+      if (ls.interval) {
+        h += note(`φ nie je polynóm, rovnica φ′(γ) = 0 sa nedá vyriešiť vzorcom. Minimum φ hľadám numericky na intervale [${fmt(ls.interval[0])}; ${fmt(ls.interval[1])}] (zlatý rez, potom φ′(γ) = 0 dopresním bisekciou).`);
+        h += line(mv('γ'), EQ, V(ls.gama));
+      }
+    }
+    if (gName && ls.gama < 0) h += note('γ je záporné: minimum leží „za chrbtom“, proti smeru. Pri Powellovi je to v poriadku.', 'amber');
+    return h;
+  }
+  function substGamma(n, P, u) {
+    const go = m => {
+      if (m.t === 'var') return m.n === 'x' ? linNode(P[0], u[0]) : linNode(P[1], u[1]);
+      if (m.t === 'num' || m.t === 'const') return m;
+      if (m.t === 'neg' || m.t === 'fn') return Object.assign({}, m, { a: go(m.a) });
+      return Object.assign({}, m, { a: go(m.a), b: go(m.b) });
+    };
+    return go(n);
+  }
+
+  // =====================================================================
+  //  LISTY PRE JEDNOTLIVE METODY
+  // =====================================================================
+  function gradLines(F, P, Pname) {
+    const gx = F.gx(P[0], P[1]), gy = F.gy(P[0], P[1]);
+    return line(`<span class="m">∂<i>f</i>/∂<i>x</i></span>`, EQ, MH(F.show.fx), EQ, MH(F.show.fx, subXY(P)), EQ, V(gx)) +
+      line(`<span class="m">∂<i>f</i>/∂<i>y</i></span>`, EQ, MH(F.show.fy), EQ, MH(F.show.fy, subXY(P)), EQ, V(gy)) +
+      line(`<span class="m">∇<i>f</i></span>(${Pname})`, EQ, `<span class="nm">(${fmt(gx)}; ${fmt(gy)})</span>`);
+  }
+  function normLines(g, norm, eps) {
+    const s = g[0] * g[0] + g[1] * g[1];
+    const pod = { t: 'fn', n: 'sqrt', a: { t: '+', a: { t: '^', a: N(g[0]), b: N(2) }, b: { t: '^', a: N(g[1]), b: N(2) } } };
+    return line(`<span class="m">‖∇<i>f</i>‖</span>`, EQ, MH(pod), EQ, MH({ t: 'fn', n: 'sqrt', a: N(s) }), EQ, V(norm)) +
+      note(`‖∇f‖ = ${fmt(norm)} ≥ ε = ${fmt(eps)} → ešte nie som v minime, pokračujem.`);
+  }
+
+  function sheetGradient(it, F, out, eps) {
+    const k = it.k, Pk = sb('P', k - 1), Pn = sb('P', k);
+    let s = '';
+    s += step(`Gradient v bode ${Pk} = ${Pt(it.P)}`, gradLines(F, it.P, Pk));
+    s += step('Dĺžka gradientu', normLines(it.grad, it.norm, eps));
+    s += step(`Normovaný smer ${sb('S', k - 1)} = −∇f / ‖∇f‖`,
+      line(sb('S', k - 1), EQ, `<span class="m">(</span>${MH({ t: '/', a: N(-it.grad[0]), b: N(it.norm) }, { dec: true })}<span class="m">;</span> ${MH({ t: '/', a: N(-it.grad[1]), b: N(it.norm) }, { dec: true })}<span class="m">)</span>`, EQ, `<span class="nm">(${fmt(it.S[0])}; ${fmt(it.S[1])})</span>`) +
+      (k >= 2 && out.iter[k - 2] ? note(`Kontrola: ${sb('S', k - 1)} · ${sb('S', k - 2)} = ${fmt(it.S[0] * out.iter[k - 2].S[0] + it.S[1] * out.iter[k - 2].S[1])} ≈ 0, po sebe idúce smery sú na seba kolmé <span class="dec ok">✓</span>`) : ''));
+    s += step(`Priamka z ${Pk} v smere ${sb('S', k - 1)}, dosadím do f a hľadám γ`, lsHTML(F, it.ls, it.P, it.S, true));
+    if (it.chyba) return s + step('Chyba', note(esc(it.chyba), 'red'));
+    s += step(`Nový bod ${Pn} = ${Pk} + γ·${sb('S', k - 1)}`,
+      line(Pn, EQ, `<span class="m">(${fmt(it.P[0])} <span class="o">+</span> ${fmt(it.gama)}<span class="o dot">·</span>${pp(it.S[0])}; ${fmt(it.P[1])} <span class="o">+</span> ${fmt(it.gama)}<span class="o dot">·</span>${pp(it.S[1])})</span>`, EQ, Pt(it.Pn)) +
+      fLine(F, it.Pn) +
+      note(it.fPn < it.fP ? `f kleslo z ${fmt(it.fP)} na ${fmt(it.fPn)} <span class="dec ok">✓</span>` : `f nekleslo (${fmt(it.fP)} → ${fmt(it.fPn)}).`, it.fPn < it.fP ? '' : 'red'));
+    return s;
+  }
+
+  function sheetNewton(it, F, out, eps) {
+    const k = it.k, Xk = sb('X', k - 1), Xn = sb('X', k);
+    let s = '';
+    s += step(`Gradient v bode ${Xk} = ${Pt(it.P)}`, gradLines(F, it.P, Xk));
+    s += step('Dĺžka gradientu', normLines(it.grad, it.norm, eps));
+    const [a, b, c, d] = it.H;
+    s += step(`Hessova matica v bode ${Xk}`,
+      line(`<span class="m"><i>H</i></span>(${Xk})`, EQ, mat(MH(F.show.fxx, subXY(it.P)), MH(F.show.fxy, subXY(it.P)), MH(F.show.fxy, subXY(it.P)), MH(F.show.fyy, subXY(it.P))), EQ,
+        mat(V(a), V(b), V(c), V(d))) + note('Označím si ju [[a, b], [c, d]]: a = ' + fmt(a) + ', b = ' + fmt(b) + ', c = ' + fmt(c) + ', d = ' + fmt(d) + '.'));
+    s += step('Determinant',
+      line('<span class="m">det <i>H</i></span>', EQ, '<span class="m"><i>a</i>·<i>d</i> − <i>b</i>·<i>c</i></span>', EQ, `<span class="m">${pp(a)}·${pp(d)} − ${pp(b)}·${pp(c)}</span>`, EQ, V(it.det)) +
+      (it.singular ? note('det H = 0 → inverzná matica neexistuje, Newton sa tu nedá použiť.', 'red') : ''));
+    if (it.singular) return s;
+    s += step('Vymením a ↔ d, pri b a c zmením znamienko',
+      line(mat(mv('d'), '−' + mv('b'), '−' + mv('c'), mv('a')), EQ, mat(V(d), V(it.mb), V(it.mc), V(a))) +
+      note(`Toto je H⁻¹ ešte bez delenia determinantom (H⁻¹ = 1/det · táto matica).`));
+    s += step('Vynásobím gradientom',
+      line(mat(V(d), V(it.mb), V(it.mc), V(a)), '<span class="o">·</span>', vec(fmt(it.grad[0]), fmt(it.grad[1])), EQ,
+        vec(`${pp(d)}·${pp(it.grad[0])} + ${pp(it.mb)}·${pp(it.grad[1])}`, `${pp(it.mc)}·${pp(it.grad[0])} + ${pp(a)}·${pp(it.grad[1])}`), EQ, vec(V(it.sx), V(it.sy))));
+    s += step('A až teraz raz vydelím determinantom',
+      line('<span class="m"><i>H</i><sup>−1</sup>∇<i>f</i></span>', EQ, vec(MH({ t: '/', a: N(it.sx), b: N(it.det) }, { dec: true }), MH({ t: '/', a: N(it.sy), b: N(it.det) }, { dec: true })), EQ, vec(V(it.krok[0]), V(it.krok[1]))));
+    s += step(`Nový bod ${Xn} = ${Xk} − H⁻¹∇f`,
+      line(Xn, EQ, `<span class="m">(${fmt(it.P[0])} − ${pp(it.krok[0])}; ${fmt(it.P[1])} − ${pp(it.krok[1])})</span>`, EQ, Pt(it.Pn)) +
+      fLine(F, it.Pn) +
+      note(`Posun ‖X${subTxt(k)} − X${subTxt(k - 1)}‖ = ${fmt(it.posun)} ${it.posun < eps ? '< ε → koniec' : '≥ ε → pokračujem'}.`, it.posun < eps ? 'ok' : ''));
+    return s;
+  }
+  const pp = v => (v < 0 ? `(${fmt(v)})` : fmt(v));
+
+  function sheetPowell(it, F, out) {
+    let s = '';
+    s += step('Začiatok iterácie', line(sb('P', 0), EQ, Pt(it.P0), '&nbsp;&nbsp;', `<span class="m"><i>f</i></span>(${sb('P', 0)})`, EQ, V(it.fP0)) +
+      line(sb('u', 1), EQ, Pt(it.u1), '&nbsp;&nbsp;', sb('u', 2), EQ, Pt(it.u2)));
+    const names = { u1: ['P', 0, 'P', 1], u2: ['P', 1, 'P', 2], d: ['P', 2, 'P', 3] };
+    for (const h of it.hladania) {
+      const [, a, , b] = names[h.meno];
+      const smer = h.meno === 'd' ? mv('d') : sb('u', h.meno === 'u1' ? 1 : 2);
+      let body = lsHTML(F, h.ls, h.z, h.smer, false, true);
+      if (h.chyba) body += note(esc(h.chyba), 'red');
+      else body += line(sb('P', b), EQ, `${sb('P', a)} + γ·${smer}`, EQ, Pt(h.Q), '&nbsp;&nbsp;', `<span class="m"><i>f</i></span>(${sb('P', b)})`, EQ, V(h.fQ));
+      if (h.meno === 'd') {
+        s += step('Nový smer d = P₂ − P₀', line(mv('d'), EQ, `<span class="m">(${fmt(it.P2[0])} − ${pp(it.P0[0])}; ${fmt(it.P2[1])} − ${pp(it.P0[1])})</span>`, EQ, Pt(it.d)));
+      }
+      s += step(`Hľadanie po priamke z ${sb('P', a)} v smere ${smer} = ${Pt(h.smer)} → ${sb('P', b)}`, `<div class="box ${h.meno}">${body}</div>`);
+    }
+    if (it.chyba) return s;
+    if (it.dNula) s += step('Nový smer d = P₂ − P₀', line(mv('d'), EQ, '<span class="nm">(0; 0)</span>') + note('Bod sa po oboch smeroch nepohol, P₃ = P₂.', 'ok'));
+    if (!it.dNula) {
+      if (it.rovnobezne) s += step('Posunutie smerov', note('d je rovnobežný s u₂ (v prvom kroku vyšlo γ = 0). Keby som smery posunul, boli by oba rovnobežné a metóda by sa zasekla mimo minima. Preto smery NEMENÍM.', 'amber') + line(sb('u', 1), EQ, Pt(it.noveU[0]), '&nbsp;&nbsp;', sb('u', 2), EQ, Pt(it.noveU[1])));
+      else s += step('Posunutie smerov: u₁ ← u₂, u₂ ← d', line(sb('u', 1), EQ, Pt(it.noveU[0]), '&nbsp;&nbsp;', sb('u', 2), EQ, Pt(it.noveU[1])));
+    }
+    s += step('Zastavenie', note(`‖P₃ − P₀‖ = ${fmt(it.posun)} ${it.posun < out.eps ? '< ε → koniec, výsledok je P₃' : '≥ ε → pokračujem, P₃ je nový P₀'}.`, it.posun < out.eps ? 'ok' : ''));
+    return s;
+  }
+
+  function sheetNM(it, F, out) {
+    const ko = out.koef;
+    let s = '';
+    const vals = it.pred.map(p => fLine(F, p.P)).join('');
+    s += step('Hodnoty funkcie v rohoch trojuholníka', vals);
+    s += step('Zoradím podľa f: B najmenšie, G stredné, W najväčšie',
+      line(mv('B'), EQ, Pt(it.B.P), `<span class="note">f = ${fmt(it.B.f)}</span>`) +
+      line(mv('G'), EQ, Pt(it.G.P), `<span class="note">f = ${fmt(it.G.f)}</span>`) +
+      line(mv('W'), EQ, Pt(it.W.P), `<span class="note">f = ${fmt(it.W.f)}</span>`) +
+      note(`d = najväčšia vzdialenosť vrcholu od B = ${fmt(it.d)} ≥ ε → pokračujem.`));
+    s += step('Stred strany oproti W',
+      line(mv('M'), EQ, '<span class="m">(<i>B</i> + <i>G</i>)/2</span>', EQ, `<span class="m">((${fmt(it.B.P[0])} + ${pp(it.G.P[0])})/2; (${fmt(it.B.P[1])} + ${pp(it.G.P[1])})/2)</span>`, EQ, Pt(it.M)));
+    s += step(`Reflexia R = M + α(M − W), α = ${fmt(ko.al)}`,
+      line(mv('R'), EQ, `<span class="m">(${fmt(it.M[0])} + ${fmt(ko.al)}·(${fmt(it.M[0])} − ${pp(it.W.P[0])}); ${fmt(it.M[1])} + ${fmt(ko.al)}·(${fmt(it.M[1])} − ${pp(it.W.P[1])}))</span>`, EQ, Pt(it.R)) +
+      (ko.al === 1 ? note('Pri α = 1 je to R = 2M − W.') : '') + fLine(F, it.R, 'R'));
+    let roz = '';
+    if (it.pripad === 1) {
+      roz += note(`f(R) = ${fmt(it.fR)} < f(B) = ${fmt(it.B.f)} → <b>prípad 1</b>: R je lepší než najlepší bod, skúsim ísť ďalej (expanzia).`);
+      roz += line(mv('E'), EQ, `<span class="m"><i>M</i> + ${fmt(ko.ga)}(<i>R</i> − <i>M</i>)</span>`, EQ, `<span class="m">(${fmt(it.M[0])} + ${fmt(ko.ga)}·(${fmt(it.R[0])} − ${pp(it.M[0])}); ${fmt(it.M[1])} + ${fmt(ko.ga)}·(${fmt(it.R[1])} − ${pp(it.M[1])}))</span>`, EQ, Pt(it.E));
+      roz += fLine(F, it.E, 'E');
+      roz += it.novy === 'E' ? note(`f(E) = ${fmt(it.fE)} < f(R) = ${fmt(it.fR)} → <span class="dec ok">W nahradím bodom E</span>`) : note(`f(E) = ${fmt(it.fE)} ≥ f(R) = ${fmt(it.fR)} → <span class="dec ok">W nahradím bodom R</span>`);
+    } else if (it.pripad === 2) {
+      roz += note(`f(B) = ${fmt(it.B.f)} ≤ f(R) = ${fmt(it.fR)} < f(G) = ${fmt(it.G.f)} → <b>prípad 2</b>: <span class="dec ok">W nahradím bodom R</span>`);
+    } else {
+      roz += note(`f(R) = ${fmt(it.fR)} ≥ f(G) = ${fmt(it.G.f)} → <b>prípad 3</b>: reflexia nepomohla, kontrakcia.`);
+      roz += line(sb('C', 1), EQ, `<span class="m"><i>M</i> + ${fmt(ko.rh)}(<i>W</i> − <i>M</i>)</span>`, EQ, Pt(it.C1), `<span class="note">f = ${fmt(it.fC1)}</span>`);
+      if (it.C2) {
+        roz += line(sb('C', 2), EQ, `<span class="m"><i>M</i> + ${fmt(ko.rh)}(<i>R</i> − <i>M</i>)</span>`, EQ, Pt(it.C2), `<span class="note">f = ${fmt(it.fC2)}</span>`);
+        roz += note(`Lepší (menšie f) je ${it.meno === 'C2' ? 'C₂' : 'C₁'}.`);
+      }
+      const cn = it.meno === 'C2' ? 'C₂' : 'C₁';
+      if (it.novy === 'S') {
+        roz += note(`f(${cn}) = ${fmt(it.fC)} ≥ f(W) = ${fmt(it.W.f)} → ani kontrakcia nepomohla, <span class="dec red">zmrštenie k B</span>.`);
+        roz += line(mv('S'), EQ, `<span class="m"><i>B</i> + ${fmt(ko.si)}(<i>W</i> − <i>B</i>)</span>`, EQ, Pt(it.S));
+        roz += line(mv('M'), EQ, `<span class="m"><i>B</i> + ${fmt(ko.si)}(<i>G</i> − <i>B</i>)</span>`, EQ, Pt(it.M2));
+      } else {
+        roz += note(`f(${cn}) = ${fmt(it.fC)} < f(W) = ${fmt(it.W.f)} → <span class="dec ok">W nahradím bodom ${cn}</span>`);
+      }
+    }
+    s += step('Rozhodnutie podľa f(R)', roz);
+    s += step('Nový trojuholník', it.po.map(p => line(Pt(p.P), `<span class="note">f = ${fmt(p.f)}</span>`)).join(''));
+    return s;
+  }
+
+  // =====================================================================
+  //  VYKRESLENIE LISTOV
+  // =====================================================================
+  const RES = {
+    gradient: it => it.Pn ? `${sb('P', it.k)} = ${Pt(it.Pn)}` : '',
+    newton: it => it.Pn ? `${sb('X', it.k)} = ${Pt(it.Pn)}` : '',
+    powell: it => it.P3 ? `${sb('P', 3)} = ${Pt(it.P3)}` : '',
+    nm: it => `<span class="note">${it.krok}</span> · B = ${Pt(it.po ? E_best(it.po) : it.B.P)}`
+  };
+  function E_best(po) { return po.slice().sort((a, b) => a.f - b.f)[0].P; }
+
+  function renderSheets() {
+    const out = state.out, F = state.F, root = $('#sheets');
+    if (!out) { root.innerHTML = ''; return; }
+    const eps = out.eps;
+    let h = '';
+    if (state.method !== 'nm') h += derivSheet(F);
+    if (state.method === 'powell') h += `<section class="sheet endsheet"><h3>Pravidlá Powella</h3>${note('Jedna iterácia: P₀ → P₁ po u₁, P₁ → P₂ po u₂, d = P₂ − P₀, P₂ → P₃ po d. Potom u₁ ← u₂, u₂ ← d. Smery sa nenormujú a γ môže byť aj záporné.')}</section>`;
+    const fn = { gradient: sheetGradient, newton: sheetNewton, powell: sheetPowell, nm: sheetNM }[state.method];
+    out.iter.forEach((it, i) => {
+      const head = `<h3>Iterácia ${it.k}${it.chyba || it.singular ? ' <small>chyba</small>' : ''}</h3><div class="res">${RES[state.method](it)}</div>`;
+      if (i < 3 || it.chyba || it.singular) h += `<article class="sheet" data-k="${it.k}"><div class="sh-h">${head}</div><ol class="steps">${fn(it, F, out, eps)}</ol></article>`;
+      else h += `<details class="sheet" data-k="${it.k}" data-i="${i}"><summary class="sh-h">${head}</summary><ol class="steps"></ol></details>`;
+    });
+    h += endSheet();
+    h += tableSheet();
+    root.innerHTML = h;
+    $$('details.sheet', root).forEach(d => d.addEventListener('toggle', () => {
+      const ol = $('ol', d);
+      if (d.open && !ol.childElementCount) ol.innerHTML = fn(out.iter[+d.dataset.i], F, out, eps);
+      if (d.open) setK(+d.dataset.k, false);
+    }));
+    $$('.sheet[data-k] .sh-h', root).forEach(el => el.addEventListener('click', () => setK(+el.closest('.sheet').dataset.k, false)));
+    $$('tr[data-k]', root).forEach(tr => tr.addEventListener('click', () => {
+      const k = +tr.dataset.k;
+      setK(k, false);
+      const sh = $(`.sheet[data-k="${k}"]`, root);
+      if (sh) { if (sh.tagName === 'DETAILS') sh.open = true; sh.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    }));
+    observeSheets();
+  }
+
+  function derivSheet(F) {
+    let h = `<section class="sheet endsheet"><h3>Derivácie (raz na začiatku)</h3>`;
+    h += line(`<span class="m"><i>f</i>(<i>x</i>, <i>y</i>)</span>`, EQ, MH(F.node));
+    if (state.method === 'powell') {
+      h += note('Powell parciálne derivácie f nepotrebuje. Derivuje sa až φ(γ) na každej priamke.');
+      return h + '</section>';
+    }
+    h += line(`<span class="m">∂<i>f</i>/∂<i>x</i></span>`, EQ, MH(F.show.fx));
+    h += line(`<span class="m">∂<i>f</i>/∂<i>y</i></span>`, EQ, MH(F.show.fy));
+    if (state.method === 'newton') {
+      h += line(`<span class="m">∂²<i>f</i>/∂<i>x</i>²</span>`, EQ, MH(F.show.fxx), '&nbsp;&nbsp;', `<span class="m">∂²<i>f</i>/∂<i>x</i>∂<i>y</i></span>`, EQ, MH(F.show.fxy), '&nbsp;&nbsp;', `<span class="m">∂²<i>f</i>/∂<i>y</i>²</span>`, EQ, MH(F.show.fyy));
+      h += line(`<span class="m"><i>H</i>(<i>x</i>, <i>y</i>)</span>`, EQ, mat(MH(F.show.fxx), MH(F.show.fxy), MH(F.show.fxy), MH(F.show.fyy)));
+    }
+    return h + '</section>';
+  }
+
+  function endSheet() {
+    const out = state.out, F = state.F, m = state.method;
+    let h = `<section class="sheet endsheet" id="koniec"><h3>${out.chyba ? 'Výpočet sa zastavil' : 'Koniec'}</h3>`;
+    if (out.chyba) return h + note(esc(out.chyba), 'red') + '</section>';
+    const st = out.stop;
+    const kk = out.iteracie;
+    if (st.typ === 'grad') {
+      const P = out.bod;
+      h += note(`Iterácia ${kk + 1} sa už nerobí: v bode ${m === 'newton' ? 'X' : 'P'}${sub(kk)} = (${fmt(P[0])}; ${fmt(P[1])}) vyšlo`);
+      h += line(`<span class="m">‖∇<i>f</i>‖</span>`, EQ, V(st.hodnota), '<span class="m">&lt;</span>', `<span class="m"><i>ε</i></span>`, EQ, `<span class="m">${fmt(out.eps)}</span>`, '<span class="dec ok">→ STOP</span>');
+    } else if (st.typ === 'posun') {
+      h += line(m === 'powell' ? '<span class="m">‖<i>P</i><sub>3</sub> − <i>P</i><sub>0</sub>‖</span>' : `<span class="m">‖<i>X</i><sub>${kk}</sub> − <i>X</i><sub>${kk - 1}</sub>‖</span>`, EQ, V(st.hodnota), '<span class="m">&lt; <i>ε</i></span>', '<span class="dec ok">→ STOP</span>');
+    } else if (st.typ === 'd') {
+      h += note(`Pred iteráciou ${kk + 1}: d = najväčšia vzdialenosť vrcholu od B = ${fmt(st.hodnota)} < ε = ${fmt(out.eps)} → STOP, výsledok je B.`, 'ok');
+    } else {
+      h += note(`Dosiahnutý maximálny počet iterácií (${kk}). Metóda ešte nie je v minime. Zvýš „max. iterácií“.`, 'amber');
+    }
+    h += line('Výsledok', Pt(out.bod), '&nbsp;&nbsp;', '<span class="m"><i>f</i></span>', EQ, V(out.f));
+    if (m === 'newton' && out.hess) {
+      const P = out.bod, a = F.hxx(P[0], P[1]), b = F.hxy(P[0], P[1]), d = F.hyy(P[0], P[1]);
+      h += `<div class="sub-h">Čo Newton našiel? (Newton hľadá ∇f = 0, to môže byť aj maximum alebo sedlo)</div>`;
+      h += line(`<span class="m"><i>H</i></span>`, EQ, mat(V(a), V(b), V(b), V(d)), '&nbsp;&nbsp;', '<span class="m">det <i>H</i></span>', EQ, V(out.hess.det), '&nbsp;&nbsp;', `<span class="m">∂²<i>f</i>/∂<i>x</i>²</span>`, EQ, V(a));
+      const t = out.hess.typ;
+      const vys = t === 'MINIMUM' ? 'det H > 0 a ∂²f/∂x² > 0 → MINIMUM' : t === 'MAXIMUM' ? 'det H > 0 a ∂²f/∂x² < 0 → MAXIMUM, Newton nenašiel minimum!' : t === 'SEDLO' ? 'det H < 0 → SEDLO, Newton nenašiel minimum!' : 'det H = 0 → podľa H sa nedá rozhodnúť';
+      h += note(vys, t === 'MINIMUM' ? 'ok' : 'red');
+    }
+    return h + '</section>';
+  }
+  const sub = k => `<sub>${k}</sub>`;
+
+  function tableSheet() {
+    const out = state.out, m = state.method;
+    if (!out.iter.length) return '';
+    let head, rows;
+    if (m === 'gradient') { head = ['k', 'Pₖ', 'f(Pₖ)', 'γ', '‖∇f(Pₖ₋₁)‖']; rows = out.iter.filter(i => i.Pn).map(i => [i.k, pT(i.Pn), fmt(i.fPn), fmt(i.gama), fmt(i.norm)]); }
+    else if (m === 'newton') { head = ['k', 'Xₖ', 'f(Xₖ)', 'det H', '‖Xₖ − Xₖ₋₁‖']; rows = out.iter.filter(i => i.Pn).map(i => [i.k, pT(i.Pn), fmt(i.fPn), fmt(i.det), fmt(i.posun)]); }
+    else if (m === 'powell') { head = ['k', 'P₁', 'P₂', 'P₃', 'f(P₃)', '‖P₃ − P₀‖']; rows = out.iter.filter(i => i.P3).map(i => [i.k, pT(i.P1), pT(i.P2), pT(i.P3), fmt(i.fP3), fmt(i.posun)]); }
+    else { head = ['k', 'krok', 'B', 'f(B)', 'd']; rows = out.iter.map(i => { const b = i.po.slice().sort((p, q) => p.f - q.f)[0]; return [i.k, i.krok, pT(b.P), fmt(b.f), fmt(i.d)]; }); }
+    return `<section class="sheet endsheet"><h3>Zhrnutie všetkých iterácií</h3><div class="tblwrap"><table class="sumt"><thead><tr>${head.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr data-k="${r[0]}">${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
+  }
+  const pT = P => `(${fmt(P[0])}; ${fmt(P[1])})`;
+
+  // =====================================================================
+  //  SUHRN
+  // =====================================================================
+  function renderSummary() {
+    const out = state.out, el = $('#sum');
+    if (!out) { el.innerHTML = '<div class="empty">Oprav zápis funkcie, výpočet sa spustí sám.</div>'; return; }
+    let h = '';
+    const nazov = { gradient: 'Najstrmší gradient', newton: 'Newton 2D', powell: 'Powell', nm: 'Nelder–Mead' }[state.method];
+    if (out.chyba) {
+      h += `<div class="sum-top"><div class="sum-res"><span class="lbl2">${nazov}</span>Výpočet sa zastavil</div></div><div class="errbox">${esc(out.chyba)}</div>`;
+    } else {
+      const st = out.stop;
+      const stopTxt = st.typ === 'grad' ? `‖∇f‖ = ${fmt(st.hodnota)} < ε` : st.typ === 'posun' ? `${state.method === 'powell' ? '‖P₃ − P₀‖' : '‖Xₖ − Xₖ₋₁‖'} = ${fmt(st.hodnota)} < ε` : st.typ === 'd' ? `d = ${fmt(st.hodnota)} < ε` : 'max. počet iterácií';
+      h += `<div class="sum-top"><div class="sum-res"><span class="lbl2">${nazov} · ${state.method === 'newton' ? 'stacionárny bod' : 'minimum'}</span><span class="m">(${fmt(out.bod[0])}; ${fmt(out.bod[1])})</span></div><div class="sum-meta">f = ${fmt(out.f)}</div></div>`;
+      h += `<div class="chips"><span class="chip blue">${out.iteracie} ${iterWord(out.iteracie)}</span><span class="chip ${st.typ === 'maxit' ? 'amber' : ''}">STOP: ${stopTxt}</span>`;
+      if (out.hess) h += `<span class="chip ${out.hess.typ === 'MINIMUM' ? '' : 'red'}">${out.hess.typ}</span>`;
+      h += `</div>`;
+    }
+    // porovnanie so seedom
+    if (state.exId && snapshot() === state.exSnap) {
+      const x = SEED.vysledky[state.exId];
+      if (x) {
+        let ok, txt;
+        if (x.chyba || out.chyba) { ok = !!x.chyba === !!out.chyba; txt = x.chyba ? 'Python tiež skončil chybou' : 'Python chybu nehlási'; }
+        else { ok = Math.hypot(x.bod[0] - out.bod[0], x.bod[1] - out.bod[1]) < 1e-6 && x.iteracie === out.iteracie; txt = `Python: (${fmt(x.bod[0])}; ${fmt(x.bod[1])}), ${x.iteracie} ${iterWord(x.iteracie)}`; }
+        h += `<div class="sum-meta">Seed ${state.exId} · ${txt} <span class="chip ${ok ? '' : 'red'}">${ok ? 'zhoda ✓' : 'nezhoda'}</span></div>`;
+      }
+    }
+    el.innerHTML = h;
+  }
+  const iterWord = n => (n === 1 ? 'iterácia' : n >= 2 && n <= 4 ? 'iterácie' : 'iterácií');
+
+  // =====================================================================
+  //  GRAF
+  // =====================================================================
+  const plot = { cv: null, bg: null, view: null, W: 0, H: 0, dpr: 1, ml: 46, mb: 24 };
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function hexRgb(h) {
+    h = h.replace('#', '');
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+  function viewPoints() {
+    const out = state.out;
+    let pts = [];
+    if (!out) return pts;
+    if (state.method === 'nm') {
+      (out.trojuholniky || []).forEach(t => t.forEach(p => pts.push(p)));
+      out.iter.slice(0, 3).forEach(it => ['R', 'E', 'C1', 'C2'].forEach(q => { if (it[q]) pts.push(it[q]); }));
+    }
+    else {
+      (out.body || []).forEach(p => pts.push(p));
+      if (state.method === 'powell') out.iter.forEach(it => { if (it.P1) pts.push(it.P1); if (it.P2) pts.push(it.P2); });
+    }
+    if (!pts.length && out.start) pts.push(out.start);
+    if (!pts.length && out.startBody) out.startBody.forEach(b => pts.push(b.P));
+    return pts.filter(p => p && isFinite(p[0]) && isFinite(p[1]) && Math.abs(p[0]) < 1e6 && Math.abs(p[1]) < 1e6);
+  }
+  function setupPlot() {
+    const wrap = $('#plotwrap'), cv = $('#plot');
+    const W = Math.max(260, wrap.clientWidth), H = Math.round(Math.min(Math.max(W * 0.78, 260), window.innerHeight * 0.55, 560));
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    cv.style.height = H + 'px';
+    Object.assign(plot, { cv, W, H, dpr });
+    const pts = viewPoints();
+    if (!pts.length || !state.F) { plot.view = null; drawPlot(); return; }
+    let x0 = Math.min(...pts.map(p => p[0])), x1 = Math.max(...pts.map(p => p[0]));
+    let y0 = Math.min(...pts.map(p => p[1])), y1 = Math.max(...pts.map(p => p[1]));
+    let w = x1 - x0, h = y1 - y0;
+    const big = Math.max(w, h);
+    const pad = big > 0 ? 0.18 * big : 1;
+    let cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    let hw = w / 2 + pad, hh = h / 2 + pad;
+    const iw = W - plot.ml, ih = H - plot.mb;
+    if (hw / hh < iw / ih) hw = hh * iw / ih; else hh = hw * ih / iw;
+    plot.view = { x0: cx - hw, x1: cx + hw, y0: cy - hh, y1: cy + hh };
+    renderBackground();
+    drawPlot();
+  }
+  const PX = x => plot.ml + (x - plot.view.x0) / (plot.view.x1 - plot.view.x0) * (plot.W - plot.ml);
+  const PY = y => (plot.H - plot.mb) - (y - plot.view.y0) / (plot.view.y1 - plot.view.y0) * (plot.H - plot.mb);
+
+  function renderBackground() {
+    const { W, H, dpr, view } = plot, F = state.F;
+    const bg = document.createElement('canvas');
+    bg.width = Math.round(W * dpr); bg.height = Math.round(H * dpr);
+    const c = bg.getContext('2d');
+    c.scale(dpr, dpr);
+    c.fillStyle = css('--sheet'); c.fillRect(0, 0, W, H);
+    const iw = W - plot.ml, ih = H - plot.mb;
+    const nx = 110, ny = Math.max(40, Math.round(nx * ih / iw));
+    const Z = [], fin = [];
+    for (let j = 0; j <= ny; j++) {
+      const row = [];
+      const y = view.y0 + (view.y1 - view.y0) * j / ny;
+      for (let i = 0; i <= nx; i++) {
+        const x = view.x0 + (view.x1 - view.x0) * i / nx;
+        let v = F.f(x, y);
+        if (!isFinite(v)) v = NaN; else fin.push(v);
+        row.push(v);
+      }
+      Z.push(row);
+    }
+    fin.sort((a, b) => a - b);
+    const L = 18, levels = [];
+    for (let i = 1; i <= L; i++) {
+      const v = fin[Math.min(fin.length - 1, Math.floor(fin.length * (i - 0.5) / (L + 0.5)))];
+      if (v !== undefined && (!levels.length || v > levels[levels.length - 1] + 1e-12 * Math.max(1, Math.abs(v)))) levels.push(v);
+    }
+    // farebne pasy
+    const lo = hexRgb(css('--plot-lo')), hi = hexRgb(css('--plot-hi'));
+    const cw = iw / nx, ch = ih / ny;
+    const band = v => { let a = 0, b = levels.length; while (a < b) { const m = (a + b) >> 1; if (levels[m] < v) a = m + 1; else b = m; } return a; };
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const v = (Z[j][i] + Z[j][i + 1] + Z[j + 1][i] + Z[j + 1][i + 1]) / 4;
+      if (!isFinite(v)) continue;
+      const t = Math.pow(band(v) / levels.length, 0.85);
+      const col = lo.map((l, q) => Math.round(l + (hi[q] - l) * t));
+      c.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+      c.fillRect(plot.ml + i * cw - 0.3, ih - (j + 1) * ch - 0.3, cw + 0.6, ch + 0.6);
+    }
+    // vrstevnice (marching squares)
+    c.strokeStyle = css('--contour'); c.lineWidth = 1;
+    const X = i => plot.ml + i * cw, Y = j => ih - j * ch;
+    const SEG = { 1: [[3, 0]], 2: [[0, 1]], 3: [[3, 1]], 4: [[1, 2]], 5: [[0, 1], [2, 3]], 6: [[0, 2]], 7: [[3, 2]], 8: [[2, 3]], 9: [[0, 2]], 10: [[3, 0], [1, 2]], 11: [[1, 2]], 12: [[1, 3]], 13: [[0, 1]], 14: [[3, 0]] };
+    c.beginPath();
+    for (const lv of levels) {
+      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+        const bl = Z[j][i], br = Z[j][i + 1], tr = Z[j + 1][i + 1], tl = Z[j + 1][i];
+        if (!(isFinite(bl) && isFinite(br) && isFinite(tr) && isFinite(tl))) continue;
+        const idx = (tl > lv ? 8 : 0) | (tr > lv ? 4 : 0) | (br > lv ? 2 : 0) | (bl > lv ? 1 : 0);
+        const segs = SEG[idx];
+        if (!segs) continue;
+        const ep = e => {
+          if (e === 0) { const t = (lv - bl) / (br - bl); return [X(i + t), Y(j)]; }
+          if (e === 1) { const t = (lv - br) / (tr - br); return [X(i + 1), Y(j + t)]; }
+          if (e === 2) { const t = (lv - tl) / (tr - tl); return [X(i + t), Y(j + 1)]; }
+          const t = (lv - bl) / (tl - bl); return [X(i), Y(j + t)];
+        };
+        for (const [e1, e2] of segs) { const p = ep(e1), q = ep(e2); c.moveTo(p[0], p[1]); c.lineTo(q[0], q[1]); }
+      }
+    }
+    c.stroke();
+    // osi
+    c.fillStyle = css('--sheet'); c.fillRect(0, 0, plot.ml, H); c.fillRect(0, ih, W, plot.mb);
+    c.strokeStyle = css('--line'); c.beginPath(); c.moveTo(plot.ml + .5, 0); c.lineTo(plot.ml + .5, ih + .5); c.lineTo(W, ih + .5); c.stroke();
+    c.fillStyle = css('--pencil'); c.font = `11px ${css('--ff-mono')}`;
+    const tick = (a, b) => { const r = (b - a) / 5, p = Math.pow(10, Math.floor(Math.log10(r))), m = r / p; return (m < 1.5 ? 1 : m < 3 ? 2 : m < 7 ? 5 : 10) * p; };
+    const tx = tick(view.x0, view.x1), ty = tick(view.y0, view.y1);
+    c.textAlign = 'center'; c.textBaseline = 'top';
+    for (let v = Math.ceil(view.x0 / tx) * tx; v <= view.x1; v += tx) { const x = PX(v); if (x < plot.ml + 10) continue; c.fillText(fmt(+v.toPrecision(10), 4), x, ih + 5); c.fillRect(x, ih, 1, 4); }
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (let v = Math.ceil(view.y0 / ty) * ty; v <= view.y1; v += ty) { const y = PY(v); if (y > ih - 8) continue; c.fillText(fmt(+v.toPrecision(10), 4), plot.ml - 6, y); c.fillRect(plot.ml - 4, y, 4, 1); }
+    // osi x = 0, y = 0
+    c.strokeStyle = css('--faint'); c.setLineDash([3, 4]); c.beginPath();
+    if (view.x0 < 0 && view.x1 > 0) { c.moveTo(PX(0), 0); c.lineTo(PX(0), ih); }
+    if (view.y0 < 0 && view.y1 > 0) { c.moveTo(plot.ml, PY(0)); c.lineTo(W, PY(0)); }
+    c.stroke(); c.setLineDash([]);
+    plot.bg = bg;
+  }
+
+  function drawPlot() {
+    const { cv, W, H, dpr } = plot;
+    if (!cv) return;
+    const c = cv.getContext('2d');
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, cv.width, cv.height);
+    if (!plot.view || !plot.bg) {
+      c.scale(dpr, dpr); c.fillStyle = css('--sheet'); c.fillRect(0, 0, W, H);
+      c.fillStyle = css('--pencil'); c.font = `14px ${css('--ff-ui')}`; c.textAlign = 'center';
+      c.fillText('Graf sa ukáže po výpočte', W / 2, H / 2);
+      return;
+    }
+    c.drawImage(plot.bg, 0, 0);
+    c.scale(dpr, dpr);
+    c.save();
+    c.beginPath(); c.rect(plot.ml, 0, W - plot.ml, H - plot.mb); c.clip();
+    const out = state.out, k = state.k, m = state.method;
+    const pen = css('--pen'), old = css('--path-old'), red = css('--red'), amber = css('--amber'), ok = css('--ok'), sheet = css('--sheet'), ink = css('--ink');
+    const dot = (P, r, fill, stroke) => { c.beginPath(); c.arc(PX(P[0]), PY(P[1]), r, 0, 2 * Math.PI); if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.lineWidth = 1.5; c.stroke(); } };
+    const seg = (P, Q, col, w, dash) => { c.beginPath(); c.setLineDash(dash || []); c.strokeStyle = col; c.lineWidth = w; c.moveTo(PX(P[0]), PY(P[1])); c.lineTo(PX(Q[0]), PY(Q[1])); c.stroke(); c.setLineDash([]); };
+    const arrow = (P, Q, col, w) => {
+      seg(P, Q, col, w);
+      const x1 = PX(P[0]), y1 = PY(P[1]), x2 = PX(Q[0]), y2 = PY(Q[1]);
+      const L = Math.hypot(x2 - x1, y2 - y1);
+      if (L < 8) return;
+      const a = Math.atan2(y2 - y1, x2 - x1), s = Math.min(10, L / 3);
+      c.beginPath(); c.fillStyle = col;
+      c.moveTo(x2, y2); c.lineTo(x2 - s * Math.cos(a - .4), y2 - s * Math.sin(a - .4)); c.lineTo(x2 - s * Math.cos(a + .4), y2 - s * Math.sin(a + .4)); c.closePath(); c.fill();
+    };
+    const label = (P, txt, col, dx, dy) => {
+      c.font = `italic 13px ${css('--ff-math')}`; c.textAlign = 'left'; c.textBaseline = 'middle';
+      const x = PX(P[0]) + (dx || 7), y = PY(P[1]) + (dy || -9);
+      c.lineWidth = 3; c.strokeStyle = sheet; c.strokeText(txt, x, y); c.fillStyle = col; c.fillText(txt, x, y);
+    };
+    if (m === 'gradient' || m === 'newton') {
+      const B = out.body;
+      for (let i = 1; i <= Math.min(k, B.length - 1); i++) {
+        if (i === k) arrow(B[i - 1], B[i], pen, 2.4); else seg(B[i - 1], B[i], old, 1.6);
+      }
+      for (let i = 0; i <= Math.min(k, B.length - 1); i++) dot(B[i], i === k ? 4.5 : 3, i === k ? pen : sheet, pen);
+      const nm = m === 'gradient' ? 'P' : 'X';
+      for (let i = Math.max(0, k - 1); i <= Math.min(k, B.length - 1); i++) label(B[i], nm + subTxt(i), i === k ? pen : old);
+      if (k === 0) label(B[0], nm + '₀', pen);
+    } else if (m === 'powell') {
+      for (let i = 0; i < Math.min(k, out.iter.length); i++) {
+        const it = out.iter[i], cur = i === k - 1, w = cur ? 2.4 : 1.3;
+        if (!it.P1) continue;
+        const cols = cur ? [pen, amber, red] : [old, old, old];
+        const pts = [it.P0, it.P1, it.P2, it.P3];
+        for (let q = 0; q < 3; q++) if (pts[q + 1]) (cur ? arrow : seg)(pts[q], pts[q + 1], cols[q], w);
+        if (cur) { ['P₀', 'P₁', 'P₂', 'P₃'].forEach((t, q) => { if (pts[q]) { dot(pts[q], 3.5, sheet, cols[Math.max(0, q - 1)]); label(pts[q], t, ink, 7, q % 2 ? 11 : -9); } }); }
+      }
+      dot(out.start, 4, k === 0 ? pen : sheet, pen);
+      if (k === 0) label(out.start, 'P₀ (štart)', pen);
+    } else if (m === 'nm') {
+      const T = out.trojuholniky || [];
+      const kk = Math.min(k, T.length - 1);
+      for (let i = 0; i < kk; i++) { const t = T[i]; c.beginPath(); c.moveTo(PX(t[0][0]), PY(t[0][1])); c.lineTo(PX(t[1][0]), PY(t[1][1])); c.lineTo(PX(t[2][0]), PY(t[2][1])); c.closePath(); c.strokeStyle = old; c.lineWidth = 1; c.stroke(); }
+      if (T[kk]) {
+        const t = T[kk];
+        c.beginPath(); c.moveTo(PX(t[0][0]), PY(t[0][1])); c.lineTo(PX(t[1][0]), PY(t[1][1])); c.lineTo(PX(t[2][0]), PY(t[2][1])); c.closePath();
+        c.fillStyle = css('--pen-soft'); c.fill(); c.strokeStyle = pen; c.lineWidth = 2.2; c.stroke();
+        ['B', 'G', 'W'].forEach((n, q) => { dot(t[q], 3.5, sheet, pen); label(t[q], n, pen); });
+      }
+      // body z iteracie, ktora tento trojuholnik vyrobila
+      const it = out.iter[kk - 1];
+      if (it) {
+        dot(it.M, 3, red); label(it.M, 'M', red, 6, 10);
+        seg(it.W.P, it.R, red, 1.2, [4, 4]);
+        dot(it.R, 3.5, sheet, red); label(it.R, 'R', red);
+        if (it.E) { dot(it.E, 3.5, sheet, red); label(it.E, 'E', red); }
+        if (it.C1) { dot(it.C1, 3.5, sheet, red); label(it.C1, 'C₁', red); }
+        if (it.C2) { dot(it.C2, 3.5, sheet, red); label(it.C2, 'C₂', red); }
+      }
+    }
+    if (!out.chyba && out.bod && k >= (out.iter.length || 0)) {
+      const P = out.bod; c.strokeStyle = ok; c.lineWidth = 2;
+      c.beginPath(); c.arc(PX(P[0]), PY(P[1]), 8, 0, 2 * Math.PI); c.stroke();
+      c.beginPath(); c.moveTo(PX(P[0]) - 12, PY(P[1])); c.lineTo(PX(P[0]) + 12, PY(P[1])); c.moveTo(PX(P[0]), PY(P[1]) - 12); c.lineTo(PX(P[0]), PY(P[1]) + 12); c.stroke();
+    }
+    c.restore();
+  }
+  const subTxt = i => String(i).split('').map(d => '₀₁₂₃₄₅₆₇₈₉'[+d]).join('');
+
+  function legend() {
+    const m = state.method, el = $('#legend');
+    const it = (col, t) => `<span><i style="background:${col}"></i>${t}</span>`;
+    if (m === 'powell') el.innerHTML = it('var(--pen)', 'po u₁') + it('var(--amber)', 'po u₂') + it('var(--red)', 'po d') + it('var(--ok)', 'výsledok');
+    else if (m === 'nm') el.innerHTML = it('var(--pen)', 'aktuálny trojuholník') + it('var(--path-old)', 'predchádzajúce') + it('var(--red)', 'M, R, E, C z poslednej iterácie') + it('var(--ok)', 'výsledok');
+    else el.innerHTML = it('var(--pen)', 'aktuálny krok') + it('var(--path-old)', 'predchádzajúce kroky') + it('var(--ok)', 'výsledok');
+  }
+
+  function setK(k, fromScroll) {
+    const out = state.out;
+    if (!out) return;
+    const max = out.iter.length;
+    k = Math.max(0, Math.min(max, k));
+    state.k = k;
+    $('#kRange').max = max; $('#kRange').value = k;
+    const nm = state.method === 'nm';
+    $('#kLbl').innerHTML = k === 0 ? (nm ? 'Začiatočný trojuholník' : 'Štart') : `Po iterácii ${k} / ${max}`;
+    $$('.sheet.on').forEach(s => s.classList.remove('on'));
+    const sh = $(`.sheet[data-k="${k}"]`);
+    if (sh) sh.classList.add('on');
+    $$('tr.on').forEach(t => t.classList.remove('on'));
+    const tr = $(`tr[data-k="${k}"]`);
+    if (tr) tr.classList.add('on');
+    if (!fromScroll) state.userK = Date.now();
+    drawPlot();
+  }
+
+  let observer = null;
+  function observeSheets() {
+    if (observer) observer.disconnect();
+    if (!('IntersectionObserver' in window)) return;
+    observer = new IntersectionObserver(entries => {
+      if (Date.now() - state.userK < 900) return;
+      const vis = entries.filter(e => e.isIntersecting);
+      if (vis.length) setK(+vis[0].target.dataset.k, true);
+    }, { rootMargin: '-25% 0px -65% 0px' });
+    $$('.sheet[data-k]').forEach(s => observer.observe(s));
+  }
+
+  // =====================================================================
+  //  ZADANIE
+  // =====================================================================
+  function numIn(id) {
+    const el = $('#' + id), s = el.value.trim().replace('−', '-');
+    let v = NaN;
+    if (/^[-+]?(\d+[.,]?\d*|[.,]\d+)(e[-+]?\d+)?$/i.test(s)) v = parseFloat(s.replace(',', '.'));
+    else if (s) {
+      try {
+        const n = E.parse(s);
+        if (!JSON.stringify(n).includes('"var"')) v = E.compile(n)(0, 0, 0);
+      } catch (e) { v = NaN; }
+    }
+    el.classList.toggle('bad', !isFinite(v));
+    return v;
+  }
+  function readForm() {
+    const m = state.method;
+    const f = { method: m, fn: $('#fn').value, eps: numIn('eps'), maxIt: Math.round(numIn('maxit')) };
+    let ok = isFinite(f.eps) && f.eps > 0 && isFinite(f.maxIt) && f.maxIt >= 1;
+    if (f.maxIt > 2000) f.maxIt = 2000;
+    if (m !== 'nm') { f.start = [numIn('x0'), numIn('y0')]; ok = ok && f.start.every(isFinite); }
+    if (m === 'powell') { f.u1 = [numIn('u1x'), numIn('u1y')]; f.u2 = [numIn('u2x'), numIn('u2y')]; ok = ok && f.u1.concat(f.u2).every(isFinite); }
+    if (m === 'nm') {
+      f.body = [[numIn('a1'), numIn('a2')], [numIn('b1'), numIn('b2')], [numIn('c1'), numIn('c2')]];
+      f.alfa = numIn('alfa'); f.gama = numIn('gama'); f.rho = numIn('rho'); f.sigma = numIn('sigma');
+      f.kontrakcia = $('#k-pr').checked ? 'prednaska' : 'cvicenie';
+      ok = ok && f.body.flat().every(isFinite) && [f.alfa, f.gama, f.rho, f.sigma].every(isFinite);
+    }
+    f.ok = ok;
+    return f;
+  }
+  const IDS = ['fn', 'x0', 'y0', 'u1x', 'u1y', 'u2x', 'u2y', 'a1', 'a2', 'b1', 'b2', 'c1', 'c2', 'alfa', 'gama', 'rho', 'sigma', 'eps', 'maxit'];
+  function snapshot() {
+    const vals = {};
+    IDS.forEach(i => { vals[i] = $('#' + i).value; });
+    return JSON.stringify({ m: state.method, v: vals, pr: $('#k-pr').checked });
+  }
+
+  function updatePreview() {
+    const src = $('#fn').value, pv = $('#preview'), er = $('#fnErr');
+    try {
+      const n = E.parse(src);
+      pv.innerHTML = `<span class="m"><i>f</i>(<i>x</i>, <i>y</i>) <span class="o">=</span> ${R(n, {}).h}</span>`;
+      pv.classList.remove('bad'); $('#fn').classList.remove('bad');
+      er.hidden = true;
+      return true;
+    } catch (e) {
+      if (!(e instanceof E.ParseError)) throw e;
+      pv.classList.add('bad'); $('#fn').classList.add('bad');
+      pv.innerHTML = '<span class="note">Zápis zatiaľ nie je úplný</span>';
+      const p = Math.min(e.pos, src.length);
+      er.innerHTML = `${esc(e.message)}<br><code>${esc(src.slice(0, p))}<mark>${esc(src.slice(p, p + 1) || ' ')}</mark>${esc(src.slice(p + 1))}</code>`;
+      er.hidden = false;
+      return false;
+    }
+  }
+
+  function compute() {
+    const okFn = updatePreview();
+    const f = readForm();
+    if (!okFn || !f.ok) { state.out = null; renderSummary(); renderSheets(); setupPlot(); return; }
+    let F;
+    try { F = E.prepare(f.fn); } catch (e) { state.out = null; renderSummary(); return; }
+    const run = { gradient: E.runGradient, newton: E.runNewton, powell: E.runPowell, nm: E.runNM }[f.method];
+    let out;
+    try { out = run(F, f); } catch (e) { out = { chyba: 'Neočakávaná chyba: ' + e.message, iter: [] }; }
+    out.eps = f.eps;
+    state.F = F; state.out = out;
+    renderSummary();
+    renderSheets();
+    legend();
+    setupPlot();
+    setK(out.chyba ? out.iter.length : out.iter.length, true);
+    save();
+  }
+  let timer = null;
+  const later = () => { clearTimeout(timer); timer = setTimeout(compute, 220); };
+
+  function setMethod(m, silent) {
+    const prev = state.method;
+    state.method = m;
+    $$('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.m === m)));
+    $$('fieldset[data-for]').forEach(fs => { fs.hidden = !fs.dataset.for.split(' ').includes(m); });
+    const mi = $('#maxit');
+    if (m === 'nm' && prev !== 'nm' && mi.value.trim() === '100') mi.value = '200';
+    if (m !== 'nm' && prev === 'nm' && mi.value.trim() === '200') mi.value = '100';
+    if (!silent) compute();
+  }
+
+  // prikladov zo seedu
+  function pyToHuman(s) {
+    return s.replace(/\*\*/g, '^').replace(/(\d|\))\s*\*\s*(?=[a-z(√])/g, '$1').replace(/([xy])\s*\*\s*(?=[xy(])/g, '$1').replace(/\*/g, '·');
+  }
+  const numTxt = v => String(v).replace('.', ',');
+  function fillExamples() {
+    const sel = $('#ex');
+    const nazvy = { gradient: 'Najstrmší gradient', newton: 'Newton 2D', powell: 'Powell', nm: 'Nelder–Mead' };
+    let h = '<option value="">vlastný príklad</option>';
+    for (const m of ['gradient', 'newton', 'powell', 'nm']) {
+      h += `<optgroup label="${nazvy[m]}">`;
+      for (const p of SEED.priklady.filter(p => p.metoda === m)) h += `<option value="${p.id}">${p.id}: ${esc(pyToHuman(p.funkcia))}</option>`;
+      h += '</optgroup>';
+    }
+    sel.innerHTML = h;
+  }
+  function loadExample(id) {
+    const p = SEED.priklady.find(q => q.id === id);
+    if (!p) { state.exId = ''; $('#exdesc').textContent = ''; compute(); return; }
+    $('#fn').value = pyToHuman(p.funkcia);
+    if (p.start) { $('#x0').value = numTxt(p.start[0]); $('#y0').value = numTxt(p.start[1]); }
+    $('#u1x').value = '1'; $('#u1y').value = '0'; $('#u2x').value = '0'; $('#u2y').value = '1';
+    if (p.body) { ['a', 'b', 'c'].forEach((l, i) => { $('#' + l + '1').value = numTxt(p.body[i][0]); $('#' + l + '2').value = numTxt(p.body[i][1]); }); }
+    $('#alfa').value = numTxt(p.alfa ?? 1); $('#gama').value = numTxt(p.gama ?? 2); $('#rho').value = numTxt(p.rho ?? 0.5); $('#sigma').value = numTxt(p.sigma ?? 0.5);
+    if (p.kontrakcia) { $('#k-pr').checked = p.kontrakcia === 'prednaska'; $('#k-cv').checked = p.kontrakcia !== 'prednaska'; }
+    $('#eps').value = numTxt(p.eps || 0.001);
+    $('#maxit').value = String(p.max_it || (p.metoda === 'nm' ? 200 : 100));
+    $('#exdesc').textContent = 'Pasca: ' + p.pasca;
+    setMethod(p.metoda, true);
+    state.exId = id;
+    state.exSnap = snapshot();
+    compute();
+  }
+
+  function save() {
+    try { localStorage.setItem('optkrok2', JSON.stringify({ snap: snapshot(), ex: state.exId, zl: state.zlomky })); } catch (e) { /* bez ulozenia */ }
+  }
+  function restore() {
+    try {
+      const d = JSON.parse(localStorage.getItem('optkrok2') || 'null');
+      if (!d || !d.snap) return false;
+      const sn = JSON.parse(d.snap);
+      if (!sn || !sn.v || !sn.m) return false;
+      IDS.forEach(id => { if (typeof sn.v[id] === 'string') $('#' + id).value = sn.v[id]; });
+      $('#k-pr').checked = !!sn.pr; $('#k-cv').checked = !sn.pr;
+      state.zlomky = d.zl !== false; $('#zlomky').checked = state.zlomky;
+      setMethod(sn.m, true);
+      if (d.ex) { state.exId = d.ex; $('#ex').value = d.ex; const p = SEED.priklady.find(q => q.id === d.ex); $('#exdesc').textContent = p ? 'Pasca: ' + p.pasca : ''; state.exSnap = snapshot(); }
+      return true;
+    } catch (e) { return false; }
+  }
+
+  // ---- udalosti ----
+  function init() {
+    fillExamples();
+    $$('.tabs button').forEach(b => b.addEventListener('click', () => setMethod(b.dataset.m)));
+    $('#fn').addEventListener('input', () => { updatePreview(); later(); });
+    $$('.params input').forEach(el => el.addEventListener('input', later));
+    $$('input[name=kontr]').forEach(el => el.addEventListener('change', compute));
+    $('#ex').addEventListener('change', e => loadExample(e.target.value));
+    $('#keys').addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      const inp = $('#fn'), ins = b.dataset.ins, c = b.dataset.c !== undefined ? +b.dataset.c : ins.length;
+      const s = inp.selectionStart ?? inp.value.length, en = inp.selectionEnd ?? s;
+      inp.value = inp.value.slice(0, s) + ins + inp.value.slice(en);
+      inp.focus();
+      inp.setSelectionRange(s + c, s + c);
+      updatePreview(); later();
+    });
+    $('#kRange').addEventListener('input', e => setK(+e.target.value, false));
+    $('#kPrev').addEventListener('click', () => setK(state.k - 1, false));
+    $('#kNext').addEventListener('click', () => setK(state.k + 1, false));
+    $('#zlomky').addEventListener('change', e => { state.zlomky = e.target.checked; renderSummary(); renderSheets(); setK(state.k, true); save(); });
+    const cv = $('#plot');
+    cv.addEventListener('mousemove', e => {
+      if (!plot.view || !state.F) return;
+      const r = cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+      if (px < plot.ml || py > plot.H - plot.mb) { $('#readout').textContent = ''; return; }
+      const x = plot.view.x0 + (px - plot.ml) / (plot.W - plot.ml) * (plot.view.x1 - plot.view.x0);
+      const y = plot.view.y0 + (plot.H - plot.mb - py) / (plot.H - plot.mb) * (plot.view.y1 - plot.view.y0);
+      $('#readout').textContent = `x = ${fmt(x, 4)}   y = ${fmt(y, 4)}   f = ${fmt(state.F.f(x, y), 4)}`;
+    });
+    if ('ResizeObserver' in window) {
+      let w = 0;
+      new ResizeObserver(() => { const nw = $('#plotwrap').clientWidth; if (Math.abs(nw - w) > 2) { w = nw; setupPlot(); } }).observe($('#plotwrap'));
+    }
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const re = () => { if (state.out) setupPlot(); };
+    if (mq.addEventListener) mq.addEventListener('change', re);
+    new MutationObserver(re).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    document.addEventListener('keydown', e => {
+      if (e.target.matches('input, select, textarea')) return;
+      if (e.key === 'ArrowRight') setK(state.k + 1, false);
+      if (e.key === 'ArrowLeft') setK(state.k - 1, false);
+    });
+    if (!restore()) { loadExample('G1'); $('#ex').value = 'G1'; return; }
+    compute();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+
+</script>
+
+</body>
+</html>
