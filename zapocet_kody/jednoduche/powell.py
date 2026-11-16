@@ -32,9 +32,9 @@ from sympy.parsing.sympy_parser import (convert_xor, implicit_multiplication_app
 #    e^(x + y)   exp(x + y)            e na nieco
 #    ln(x)   abs(x)   sin(x)   pi      logaritmus, abs. hodnota, ...
 #    0.5x                              desatinna BODKA (nie ciarka)
-FUNKCIA = "x^2 - 4x + 2*y^2 - 6y + 2*xy"
-START = (0, 0)           # zaciatocny bod P0 = (x, y)
-EPS = 0.001              # STOP ked ||P3 - P0|| < EPS
+FUNKCIA = "20*x**2+y**2+(x-y+1)**4"   # funkcia v uvodzovkach
+START = (2,3)            # zaciatocny bod P0 = (x, y)
+EPS = 0.000000001              # STOP ked ||P3 - P0|| < EPS
 MAX_IT = 100             # najviac tolko iteracii
 DESATINNE = 5            # VYSLEDOK zaokruhlim na tolko desatinnych miest
                          # (len konecny vypis - vypocet sa tym nemeni)

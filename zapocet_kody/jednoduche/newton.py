@@ -29,11 +29,17 @@ from sympy.parsing.sympy_parser import (convert_xor, implicit_multiplication_app
 #    e^(x + y)   exp(x + y)            e na nieco
 #    ln(x)   abs(x)   sin(x)   pi      logaritmus, abs. hodnota, ...
 #    0.5x                              desatinna BODKA (nie ciarka)
-FUNKCIA = "(x+2)**2 + (y-1)**2 + (x*y)/2"
-START = (3, -2)           # zaciatocny bod X0 = (x, y)
-EPS = 0.001              # STOP ked ||grad f|| < EPS alebo ||X_nove - X|| < EPS
-MAX_IT = 100             # najviac tolko iteracii
-DESATINNE = 5            # VYSLEDOK zaokruhlim na tolko desatinnych miest
+         # zaciatocny bod X0 = (x, y)
+             # STOP ked ||grad f|| < EPS alebo ||X_nove - X|| < EPS
+            # najviac tolko iteracii
+DESATINNE = 5 
+
+FUNKCIA = "20*x**2+y**2+(x-y+1)**4"   # funkcia v uvodzovkach
+START = (2,3)           # zaciatocny bod P0 = (x, y)
+EPS = 0.000000001              # STOP ked ||grad f|| < EPS
+MAX_IT = 20000             # najviac tolko iteracii
+# pevny krok: P = P - lr*grad   (None = gama z phi'(gama) = 0)
+              # VYSLEDOK zaokruhlim na tolko desatinnych miest
                          # (len konecny vypis - vypocet sa tym nemeni)
 # ======================================================================
 

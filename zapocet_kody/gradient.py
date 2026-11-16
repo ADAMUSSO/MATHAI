@@ -1,5 +1,6 @@
 # Metoda najstrmsieho zostupu (steepest descent)
-#   - smer je NORMOVANY:        S = -grad f / ||grad f||
+#   - smer BEZ normovania:      S = -grad f
+#     (NORMOVAT = True ->       S = -grad f / ||grad f||)
 #   - krok gama hladame presne:  phi(gama) = f(P + gama*S),  phi'(gama) = 0
 #   - novy bod:                  P_nove = P + gama*S
 #
@@ -55,10 +56,11 @@ import sympy as sp
 #    "sqrt(x**2 + 1) + (y - 2)**2"
 #    "exp(x**2 + y**2) - 2*x"
 #
-FUNKCIA = "x**2 + 2*y**2"   # funkcia v uvodzovkach
-START = (3, 1)              # startovaci bod (x0, y0), napr. (-1.2, 1)
-EPS = 1e-3                  # presnost: 1e-3 = 0.001,  1e-4 = 0.0001
-MAX_IT = 100                # najviac tolko iteracii
+FUNKCIA = "3*(x+2)**2+0.2*(y-1)**2+0.5*(x+2)*(y-1)+(x+2)**2*(y-1)**2"   # funkcia v uvodzovkach
+START = (0,3)              # startovaci bod (x0, y0), napr. (-1.2, 1)
+EPS = 10e-8                  # presnost: 1e-3 = 0.001,  1e-4 = 0.0001
+MAX_IT = 20000                # najviac tolko iteracii
+NORMOVAT = False              # False: S = -grad,   True: S = -grad/||grad||
 # =============================================================================
 
 
@@ -158,6 +160,18 @@ def minima_polynomu(phi):
 
 
 def najdi_gamu(f, P, S):
+    """Najde gama > 0, kde je phi(gama) = f(P + gama*S) najmensie.
+    Ked S nie je normovany (S = -grad), je pri minime velmi kratky a phi ma
+    drobne koeficienty (1e-24...) -> korene by sa nenasli. Preto gama hladam
+    v smere dlzky 1 a prepocitam: gama = gama_jednotkove / ||S||  (ten isty bod)."""
+    d = math.hypot(S[0], S[1])
+    g, phi = najdi_gamu_jednotkovy(f, P, (S[0] / d, S[1] / d))
+    if d != 1:
+        phi = sp.expand(f.subs({x: P[0] + gama * S[0], y: P[1] + gama * S[1]}, simultaneous=True))
+    return g / d, phi
+
+
+def najdi_gamu_jednotkovy(f, P, S):
     """Dosadi priamku do f a najde gama > 0, kde je phi(gama) najmensie."""
     # 1. dosadenie priamky: x = Px + gama*Sx,  y = Py + gama*Sy
     phi = sp.expand(f.subs({x: P[0] + gama * S[0], y: P[1] + gama * S[1]}, simultaneous=True))
@@ -218,8 +232,8 @@ def main():
             stop = f"||grad f|| = {dlzka:.2e} < eps po {k} iteraciach"
             break
 
-        # normovany smer
-        S = (-gx / dlzka, -gy / dlzka)
+        # smer najvacsieho klesania (normovany len ak NORMOVAT = True)
+        S = (-gx / dlzka, -gy / dlzka) if NORMOVAT else (-gx, -gy)
 
         # presne hladanie po priamke
         g, phi = najdi_gamu(f, P, S)

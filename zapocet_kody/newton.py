@@ -55,10 +55,12 @@ import sympy as sp
 #    "sqrt(x**2 + 1) + (y - 2)**2"
 #    "exp(x**2 + y**2) - 2*x"
 #
-FUNKCIA = "x**4/4 + x**2/2 + y**2/2"   # funkcia v uvodzovkach
-START = (1, 1)              # startovaci bod (x0, y0), napr. (-1.2, 1)
-EPS = 1e-3                  # presnost: 1e-3 = 0.001,  1e-4 = 0.0001
-MAX_IT = 100                # najviac tolko iteracii
+  
+
+FUNKCIA = "x**6/6 -1.25*x**4 + 2*x**2 + (y-x/2)**2"   # funkcia v uvodzovkach
+START = (0.5,0.5)               # startovaci bod (x0, y0), napr. (-1.2, 1)
+EPS = 10e-8                  # presnost: 1e-3 = 0.001,  1e-4 = 0.0001
+MAX_IT = 20000               # najviac tolko iteracii
 # =============================================================================
 
 

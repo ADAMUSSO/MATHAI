@@ -67,17 +67,25 @@ import sympy as sp
 #    "sqrt(x**2 + 1) + (y - 2)**2"
 #    "exp(x**2 + y**2) - 2*x"
 #
-FUNKCIA = "x**2 + y**2 + x - 2*y - x*y + 2"     # funkcia v uvodzovkach
-BODY = [(1.2, 0), (0, 0.8), (0, 0)]   # 3 startovacie body trojuholnika (poradie je jedno)
+   # funkcia v uvodzovkach
+BODY = [(0,3), (1,3), (0,4)]   # 3 startovacie body trojuholnika (poradie je jedno)
 ALFA = 1                    # reflexia
 GAMA = 2                    # expanzia
 RHO = 0.5                   # kontrakcia
 SIGMA = 0.5                 # zmrstenie
 KONTRAKCIA = "prednaska"    # "prednaska" = C1 aj C2, beriem ten s mensim f
                             # "cvicenie"  = len C1 = M + rho*(W - M)
-EPS = 1e-3                  # presnost: 1e-3 = 0.001,  1e-4 = 0.0001
-MAX_IT = 200                # najviac tolko iteracii
-KRESLIT = 200                 # nakresli trojuholniky prvych KRESLIT iteracii (0 = nekreslit)
+ # funkcia v uvodzovkach
+            # startovaci bod (x0, y0), napr. (-1.2, 1)
+                # presnost: 1e-3 = 0.001,  1e-4 = 0.0001
+
+KRESLIT = 200   
+
+
+FUNKCIA = "3*(x+2)**2+0.2*(y-1)**2+0.5*(x+2)*(y-1)+(x+2)**2*(y-1)**2"   # funkcia v uvodzovkach
+START = (0,3)              # startovaci bod (x0, y0), napr. (-1.2, 1)
+EPS = 10e-8                  # presnost: 1e-3 = 0.001,  1e-4 = 0.0001
+MAX_IT = 20000                 # nakresli trojuholniky prvych KRESLIT iteracii (0 = nekreslit)
 # =============================================================================
 
 

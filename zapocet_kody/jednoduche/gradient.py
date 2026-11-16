@@ -1,11 +1,15 @@
-# NAJSTRMSI GRADIENT (normovany smer) - jednoducha verzia, kroky ako na papieri
+# NAJSTRMSI GRADIENT (smer BEZ normovania, da sa prepnut cez NORMOVAT) - jednoducha verzia, kroky ako na papieri
 #
 #   1. grad f(P) = (fx, fy)            dosadim bod P do derivacii
 #   2. ||grad|| = odmocnina(fx^2 + fy^2)        STOP ak ||grad|| < eps
-#   3. S = -grad / ||grad||            smer najvacsieho klesania (dlzka 1)
+#   3. S = -grad                       smer najvacsieho klesania (bez normovania)
+#      (ak NORMOVAT = True:  S = -grad / ||grad||, dlzka 1)
 #   4. phi(gama) = f(P + gama*S)       dosadim priamku do f
 #   5. phi'(gama) = 0  ->  gama > 0    (ak vyjde viac miním, beriem to s najmensim phi)
 #   6. P = P + gama*S                  a ideme znova od 1.
+#
+# Ak je LEARNING_RATE nastaveny (nie None), kroky 3.-5. sa preskocia a krok je pevny:
+#   P = P - lr * grad f(P)             (klasicky gradientny zostup s learning rate)
 #
 # Pocita sa na 50 platnych cifier, takze zaokruhlovanie vysledok nepokazi.
 # DESATINNE = na kolko desatinnych miest zaokruhlim VYSLEDOK (5 a viac nahor);
@@ -27,10 +31,12 @@ from sympy.parsing.sympy_parser import (convert_xor, implicit_multiplication_app
 #    e^(x + y)   exp(x + y)            e na nieco
 #    ln(x)   abs(x)   sin(x)   pi      logaritmus, abs. hodnota, ...
 #    0.5x                              desatinna BODKA (nie ciarka)
-FUNKCIA = "x^2 + 2y^2"
-START = (2, 2)           # zaciatocny bod P0 = (x, y)
+FUNKCIA = "20*x**2+y**2+(x-y+1)**4"   # funkcia v uvodzovkach
+START = (2,3)           # zaciatocny bod P0 = (x, y)
 EPS = 0.001              # STOP ked ||grad f|| < EPS
-MAX_IT = 100             # najviac tolko iteracii
+MAX_IT = 20000             # najviac tolko iteracii
+LEARNING_RATE = 0.005    # pevny krok: P = P - lr*grad   (None = gama z phi'(gama) = 0)
+NORMOVAT = False         # False: S = -grad,   True: S = -grad/||grad||
 DESATINNE = 4            # VYSLEDOK zaokruhlim na tolko desatinnych miest
                          # (len konecny vypis - vypocet sa tym nemeni)
 # ======================================================================
@@ -122,7 +128,7 @@ def najdi_gamu(phi):
     return min(minima, key=lambda r: (round(float(phi_v(r)), 12), r)), dp.as_expr()
 
 
-def vypocitaj(funkcia=FUNKCIA, start=START, eps=EPS, max_it=MAX_IT, vypis=True):
+def vypocitaj(funkcia=FUNKCIA, start=START, eps=EPS, max_it=MAX_IT, lr=LEARNING_RATE, vypis=True):
     pis = print if vypis else (lambda *a, **k: None)
     f = nacitaj_funkciu(funkcia)
     fx, fy = sp.diff(f, x), sp.diff(f, y)
@@ -145,8 +151,18 @@ def vypocitaj(funkcia=FUNKCIA, start=START, eps=EPS, max_it=MAX_IT, vypis=True):
         pis(f"\n--- iteracia {k + 1} ---")
         pis(f"P = {bod(P)},  f(P) = {t(hodnota(f, P))}")
         pis(f"grad f(P) = {bod((gx, gy))},  ||grad|| = {t(norma)}")
-        S = (-gx / norma, -gy / norma)
-        pis(f"S = -grad/||grad|| = {bod(S)}")
+        if lr is not None:
+            a = sp.Float(str(lr), CIFRY)
+            P = (P[0] - a * gx, P[1] - a * gy)
+            pis(f"P_nove = P - lr*grad = P - {t(a)}*{bod((gx, gy))} = {bod(P)},  f = {t(hodnota(f, P))}")
+            historia.append({"grad": (gx, gy), "lr": a, "P": P})
+            continue
+        if NORMOVAT:
+            S = (-gx / norma, -gy / norma)
+            pis(f"S = -grad/||grad|| = {bod(S)}")
+        else:
+            S = (-gx, -gy)
+            pis(f"S = -grad = {bod(S)}")
         phi = sp.expand(f.subs({x: P[0] + gama * S[0], y: P[1] + gama * S[1]}, simultaneous=True))
         pis(f"phi(gama) = f(P + gama*S) = {str(sp.N(phi, 7)).replace('**', '^')}")
         g, dphi = najdi_gamu(phi)
